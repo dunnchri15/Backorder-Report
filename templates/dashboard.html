@@ -156,6 +156,10 @@ tbody td{padding:5px 10px;white-space:nowrap;}
     </select>
     <span class="fl">Search</span>
     <input type="text" id="fSearch" placeholder="Part #, Order #, Planner..." oninput="applyFilters()">
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mut);cursor:pointer;white-space:nowrap;user-select:none;">
+      <input type="checkbox" id="fExcludeBuildAhead" onchange="applyFilters()" style="accent-color:var(--red);width:13px;height:13px;cursor:pointer;">
+      Hide Build Ahead
+    </label>
     <button class="btn btn-s" onclick="clearFilters()">Clear</button>
   </div>
 
@@ -504,6 +508,7 @@ function clearFilters() {
   document.getElementById('fPartType').value = '';
   document.getElementById('fTiming').value   = 'overdue';
   document.getElementById('fSearch').value   = '';
+  document.getElementById('fExcludeBuildAhead').checked = false;
   selCoord=null; selProj=null;
   showNotesBar(null);
   applyFilters();
@@ -536,6 +541,7 @@ function getFilteredParts(ignoreCoordProj) {
         if (fpt==='purchased'    && !p[13]) return;
         if (fpt==='manufactured' &&  p[13]) return;
         if (!matchTiming(p[9])) return;
+        if (document.getElementById('fExcludeBuildAhead').checked && proj.toUpperCase().includes('BUILD AHEAD')) return;
         if (fq && !((p[2]||'')+(p[0]||'')+proj+(p[14]||'')+(p[1]||'')).toLowerCase().includes(fq)) return;
         out.push({coord,proj,p});
       });
