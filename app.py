@@ -271,41 +271,64 @@ def upload():
 
 @app.route("/upload-feeder", methods=["POST"])
 def upload_feeder():
-    """Upload ONE feeder CSV at a time — avoids timeout on multiple large files."""
+    """Upload ONE feeder CSV at a time — merges into saved feeder set."""
     f = request.files.get("feeder_csv")
     if not f or not f.filename:
         return jsonify({"ok": False, "error": "No file received"})
     try:
         raw = f.read()
         new_parts = parse_one_feeder_csv(raw)
-        # Merge with existing feeder set
         existing = load_feeder() or set()
         merged = existing | new_parts
         save_feeder(merged)
-        # Re-tag existing backorder data if present
+        # Re-tag existing backorder data
         data = load_parts()
         if data:
             for key, part_list in data["parts"].items():
                 for p in part_list:
-                    p[13] = 1 if p[2] in merged else 0
+                    pv = p[2]  # part_no already cleaned
+                    p[13] = 1 if pv in merged else 0
             save_parts(data)
         return jsonify({
             "ok": True,
             "filename": f.filename,
-            "new_parts": len(new_parts),
-            "total_parts": len(merged),
+            "this_file_parts": len(new_parts),
+            "cumulative_total": len(merged),
+            "previously_had": len(existing),
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()})
 
+@app.route("/feeder-status")
+def feeder_status():
+    """Check what feeder data is saved on the server."""
+    feeder = load_feeder()
+    data = load_parts()
+    purchased = 0
+    total = 0
+    if data:
+        for pl in data["parts"].values():
+            for p in pl:
+                total += 1
+                if p[13]: purchased += 1
+    return jsonify({
+        "feeder_loaded": feeder is not None,
+        "feeder_size": len(feeder) if feeder else 0,
+        "expected_size": "~337000",
+        "feeder_ok": len(feeder) > 100000 if feeder else False,
+        "backorder_total": total,
+        "backorder_purchased": purchased,
+        "meta": load_meta(),
+    })
 
 @app.route("/clear-feeder", methods=["POST"])
-def clear_feeder():
-    """Reset feeder data so you can start fresh."""
-    try:
-        os.remove(FEEDER_FILE)
+def clear_feeder_route():
+    try: os.remove(FEEDER_FILE)
     except: pass
     return jsonify({"ok": True})
+
+
+
 
 
 @app.route("/dashboard")
