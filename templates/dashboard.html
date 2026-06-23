@@ -174,17 +174,7 @@ tbody td{padding:5px 10px;white-space:nowrap;}
           <button class="btn btn-grn btn-sm" onclick="exportCSV()">&#8595; Export CSV</button>
         </div>
       </div>
-      <div class="nb" id="nb">
-        <div class="ni">&#128203;</div>
-        <div style="flex:1;min-width:0;">
-          <div class="nl" id="nlbl">Project Notes</div>
-          <textarea class="nta" id="nta" rows="2" placeholder="Type notes here..."></textarea>
-        </div>
-        <div class="nsw">
-          <button class="btn btn-p btn-sm" onclick="saveNote()">Save</button>
-          <span class="nsv" id="nsv">&#10003; Saved</span>
-        </div>
-      </div>
+      <!-- Notes modal at end of body -->
       <div class="ts"><div id="tbl"></div></div>
     </div>
   </div>
@@ -207,7 +197,7 @@ const MS = {};
 let openPanel = null;
 
 function msCreate(id) {
-  MS[id] = { options: [], selected: new Set() };
+  MS[id] = { options: [], selected: null };
   const wrap = document.getElementById(id);
   wrap.innerHTML = `
     <div class="ms-trigger" id="${id}-trigger">
@@ -249,16 +239,15 @@ function msCreate(id) {
   });
 
   document.getElementById(`${id}-all`).addEventListener('click', function() {
-    MS[id].selected = new Set();
+    MS[id].selected = null; // null = no filter = show all
     msRender(id);
     msUpdateLabel(id);
     applyFilters();
   });
 
   document.getElementById(`${id}-none`).addEventListener('click', function() {
-    // "Clear all" = uncheck everything visually so user can select specific items
-    // Set selected = all options individually (all unchecked state)
-    MS[id].selected = new Set(MS[id].options);
+    // Clear all = empty Set = all unchecked, user can then check specific items
+    MS[id].selected = new Set();
     msRender(id);
     msUpdateLabel(id);
     applyFilters();
@@ -274,7 +263,7 @@ function msClose(id) {
 
 function msPopulate(id, opts) {
   MS[id].options = opts;
-  MS[id].selected = new Set();
+  MS[id].selected = null;
   msRender(id);
   msUpdateLabel(id);
 }
@@ -291,7 +280,7 @@ function msRender(id, search) {
   }
 
   list.innerHTML = visible.map(opt => {
-    const checked = selected.size === 0 || selected.has(opt);
+    const checked = selected === null || selected.has(opt);
     const eid = `${id}-opt-${opt.replace(/[^a-zA-Z0-9]/g,'_')}`;
     return `<div class="ms-item">
       <input type="checkbox" id="${eid}" ${checked?'checked':''} data-val="${opt.replace(/"/g,'&quot;')}" data-id="${id}">
@@ -305,15 +294,15 @@ function msRender(id, search) {
       const val = this.getAttribute('data-val');
       const msId = this.getAttribute('data-id');
       const m = MS[msId];
-      if (m.selected.size === 0) {
-        // Currently "all" — clicking one deselects all others
+      if (m.selected === null) {
+        // Was "show all" — user unchecked one → switch to explicit, exclude that item
         m.selected = new Set(m.options);
         m.selected.delete(val);
       } else {
         if (this.checked) m.selected.add(val);
         else m.selected.delete(val);
-        // If all selected, go back to "all" (empty)
-        if (m.selected.size === m.options.length) m.selected = new Set();
+        // If all items now checked → back to null (no filter)
+        if (m.selected.size === m.options.length) m.selected = null;
       }
       msRender(msId);
       msUpdateLabel(msId);
@@ -323,13 +312,17 @@ function msRender(id, search) {
 }
 
 function msUpdateLabel(id) {
-  const {selected, options} = MS[id];
-  const trigger = document.getElementById(`${id}-trigger`);
-  const label   = document.getElementById(`${id}-label`);
+  const selected = MS[id].selected;
+  const options  = MS[id].options;
+  const trigger  = document.getElementById(`${id}-trigger`);
+  const label    = document.getElementById(`${id}-label`);
   if (!trigger || !label) return;
-  if (selected.size === 0 || selected.size === options.length) {
+  if (selected === null) {
     label.textContent = 'All';
     trigger.classList.remove('has-filter');
+  } else if (selected.size === 0) {
+    label.textContent = 'None';
+    trigger.classList.add('has-filter');
   } else if (selected.size === 1) {
     label.textContent = [...selected][0];
     trigger.classList.add('has-filter');
@@ -340,14 +333,13 @@ function msUpdateLabel(id) {
 }
 
 function msMatches(id, val) {
-  const {selected, options} = MS[id];
-  // Empty set OR all options selected = no filter active = show all
-  if (selected.size === 0 || selected.size === options.length) return true;
+  const selected = MS[id].selected;
+  if (selected === null) return true; // null = no filter, show all
   return selected.has(val || '');
 }
 
 function msReset(id) {
-  MS[id].selected = new Set();
+  MS[id].selected = null;
   document.getElementById(`${id}-search`).value = '';
   msRender(id);
   msUpdateLabel(id);
@@ -367,44 +359,34 @@ async function saveNotes() {
   });
 }
 
-function saveNote() {
-  if (!selProj) return;
-  const ta = document.getElementById('nta');
-  if (!ta) return;
-  const v = ta.value.trim();
-  if (v) notes[selProj] = v; else delete notes[selProj];
-  saveNotes().then(() => {
-    const m = document.getElementById('nsv');
-    if (m) { m.classList.add('show'); setTimeout(()=>m.classList.remove('show'), 2000); }
-    renderTree();
-  });
-}
+
 
 function showNotesBar(proj) {
-  // Close any open multi-select panel first
+  if (!proj) return;
   if (openPanel) msClose(openPanel);
-  const nb = document.getElementById('nb');
-  if (!proj) { nb.classList.remove('open'); return; }
-  nb.classList.add('open');
-  document.getElementById('nlbl').textContent = proj;
-  // Replace textarea to get fresh event listeners
-  const oldTa = document.getElementById('nta');
-  const newTa = document.createElement('textarea');
-  newTa.className = 'nta';
-  newTa.id = 'nta';
-  newTa.rows = 2;
-  newTa.placeholder = 'Type notes here (e.g. 1 truck ships 6/22, 2 on 6/26)...';
-  newTa.value = notes[proj] || '';
-  oldTa.parentNode.replaceChild(newTa, oldTa);
-  newTa.addEventListener('input', () => {
-    clearTimeout(autoTimer);
-    autoTimer = setTimeout(saveNote, 1500);
+  document.getElementById('modalProjName').textContent = proj;
+  const ta = document.getElementById('modalNta');
+  ta.value = notes[proj] || '';
+  document.getElementById('modalSaved').style.opacity = '0';
+  document.getElementById('notesDlg').showModal();
+  setTimeout(() => ta.focus(), 100);
+}
+
+function closeNotesDlg() {
+  document.getElementById('notesDlg').close();
+}
+
+function saveNoteModal() {
+  if (!selProj) return;
+  const v = document.getElementById('modalNta').value.trim();
+  if (v) notes[selProj] = v; else delete notes[selProj];
+  saveNotes().then(() => {
+    const m = document.getElementById('modalSaved');
+    m.style.opacity = '1';
+    setTimeout(() => m.style.opacity = '0', 2000);
+    renderTree();
+    renderTable();
   });
-  newTa.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); saveNote(); }
-  });
-  document.getElementById('nsv').classList.remove('show');
-  setTimeout(() => newTa.focus(), 30);
 }
 
 // ── FILTER INIT ───────────────────────────────────────────────
@@ -536,10 +518,12 @@ function renderTree() {
 
 function toggleCoord(c) {
   selCoord=selCoord===c?null:c; selProj=null;
-  showNotesBar(null); applyFilters();
+  applyFilters();
 }
 function selectProj(proj,coord) {
-  selCoord=coord; selProj=proj; showNotesBar(proj); applyFilters();
+  selCoord=coord; selProj=proj;
+  applyFilters();
+  if (proj) showNotesBar(proj);
 }
 
 // ── TABLE ─────────────────────────────────────────────────────
@@ -625,5 +609,21 @@ initFilters();
 populateFilters();
 applyFilters();
 </script>
+
+<dialog id="notesDlg" style="background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:24px;width:480px;max-width:95vw;color:var(--txt);box-shadow:0 16px 48px rgba(0,0,0,.7);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--org);margin-bottom:2px;">Project Notes</div>
+      <div id="modalProjName" style="font-size:13px;font-weight:600;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    </div>
+    <button onclick="closeNotesDlg()" style="background:none;border:none;color:var(--mut);font-size:22px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
+  </div>
+  <textarea id="modalNta" rows="5" style="display:block;width:100%;background:var(--surf2);border:1px solid rgba(240,160,69,.4);border-radius:6px;color:var(--txt);font-size:13px;font-family:inherit;line-height:1.6;padding:8px 10px;resize:vertical;min-height:90px;outline:none;box-sizing:border-box;" placeholder="Add notes (e.g. 1 truck ships 6/22, 2 on 6/26)..."></textarea>
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
+    <span id="modalSaved" style="font-size:11px;color:var(--grn);opacity:0;transition:opacity .3s;">&#10003; Saved</span>
+    <button onclick="closeNotesDlg()" style="background:var(--surf2);color:var(--mut);border:1px solid var(--bdr);border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;">Close</button>
+    <button onclick="saveNoteModal()" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;">Save Note</button>
+  </div>
+</dialog>
 </body>
 </html>
