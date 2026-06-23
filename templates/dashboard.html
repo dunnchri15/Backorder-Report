@@ -10,7 +10,6 @@
 html,body{height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;font-size:13px;}
 .app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
 
-/* TOP BAR */
 .topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:50px;background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;}
 .logo{font-weight:800;font-size:14px;letter-spacing:.5px;flex-shrink:0;}
 .logo span{color:var(--red);}
@@ -23,29 +22,30 @@ html,body{height:100%;background:var(--bg);color:var(--txt);font-family:system-u
 .filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 14px;background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;}
 .fl{font-size:10px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
 
-/* MULTI-SELECT DROPDOWN */
-.ms-wrap{position:relative;}
-.ms-btn{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:5px;padding:4px 24px 4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;min-width:80px;max-width:160px;overflow:hidden;text-overflow:ellipsis;user-select:none;display:inline-block;}
-.ms-btn::after{content:"\25BE";position:absolute;right:7px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:10px;pointer-events:none;}
-.ms-btn.active{border-color:var(--red);color:var(--txt);}
-.ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surf);border:1px solid var(--bdr);border-radius:7px;z-index:200;min-width:180px;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);}
-.ms-dropdown.open{display:block;}
-.ms-search{padding:7px 10px;border-bottom:1px solid var(--bdr);}
-.ms-search input{width:100%;background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:4px;padding:3px 7px;font-size:11px;outline:none;}
-.ms-search input:focus{border-color:var(--red);}
-.ms-actions{display:flex;gap:6px;padding:5px 10px;border-bottom:1px solid var(--bdr);}
-.ms-action{font-size:10px;color:var(--mut);cursor:pointer;padding:2px 0;}
-.ms-action:hover{color:var(--txt);}
-.ms-option{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;font-size:11px;}
-.ms-option:hover{background:var(--surf2);}
-.ms-option input[type=checkbox]{accent-color:var(--red);width:13px;height:13px;cursor:pointer;flex-shrink:0;}
-.ms-option label{cursor:pointer;flex:1;}
-.ms-empty{padding:10px;color:var(--mut);font-size:11px;text-align:center;}
+/* MULTI-SELECT */
+.ms-wrap{position:relative;display:inline-block;}
+.ms-trigger{display:flex;align-items:center;gap:4px;background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;min-width:70px;user-select:none;}
+.ms-trigger:hover{border-color:var(--mut);}
+.ms-trigger.has-filter{border-color:var(--red);color:var(--txt);}
+.ms-trigger .ms-arrow{margin-left:auto;color:var(--mut);font-size:9px;}
+.ms-panel{display:none;position:absolute;top:calc(100% + 3px);left:0;min-width:200px;max-height:280px;background:var(--surf);border:1px solid var(--bdr);border-radius:8px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.5);flex-direction:column;}
+.ms-panel.show{display:flex;}
+.ms-searchbox{padding:8px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.ms-searchbox input{width:100%;background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:4px;padding:3px 8px;font-size:11px;outline:none;}
+.ms-searchbox input:focus{border-color:var(--red);}
+.ms-links{display:flex;gap:10px;padding:5px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.ms-link{font-size:10px;color:var(--mut);cursor:pointer;text-decoration:underline;}
+.ms-link:hover{color:var(--txt);}
+.ms-list{overflow-y:auto;max-height:200px;}
+.ms-item{display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;font-size:11px;}
+.ms-item:hover{background:var(--surf2);}
+.ms-item input{accent-color:var(--red);width:13px;height:13px;flex-shrink:0;cursor:pointer;}
+.ms-item label{flex:1;cursor:pointer;user-select:none;}
+.ms-none{padding:10px;color:var(--mut);font-size:11px;text-align:center;}
 
-/* TIMING select stays native */
 select.native,input[type=text]{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:5px;padding:4px 8px;font-size:11px;outline:none;}
 select.native:focus,input:focus{border-color:var(--red);}
-input[type=text]{width:155px;}
+input[type=text]{width:150px;}
 .btn{padding:4px 11px;border-radius:5px;border:none;cursor:pointer;font-size:11px;font-weight:600;transition:opacity .15s;}
 .btn:hover{opacity:.82;}
 .btn-s{background:var(--surf2);color:var(--mut);border:1px solid var(--bdr);}
@@ -61,7 +61,7 @@ input[type=text]{width:155px;}
 .sc .sub{font-size:9px;color:var(--mut);margin-top:2px;}
 .c-red{color:var(--red);}.c-org{color:var(--org);}.c-grn{color:var(--grn);}.c-wht{color:var(--txt);}
 
-/* LAYOUT */
+/* BODY */
 .body{display:flex;flex:1;overflow:hidden;}
 .pivot{width:260px;flex-shrink:0;overflow-y:auto;background:var(--surf);border-right:1px solid var(--bdr);}
 .ph{padding:8px 13px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--surf);z-index:5;display:flex;justify-content:space-between;}
@@ -94,7 +94,7 @@ input[type=text]{width:155px;}
 .nb.open{display:flex;}
 .ni{color:var(--org);font-size:13px;margin-top:2px;flex-shrink:0;}
 .nl{font-size:9px;font-weight:700;color:var(--org);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
-.nta{display:block;width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(240,160,69,.4);border-radius:5px;color:var(--txt);font-size:12px;font-family:inherit;line-height:1.5;padding:5px 8px;resize:vertical;min-height:36px;max-height:100px;outline:none;-webkit-user-select:text;user-select:text;}
+.nta{display:block;width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(240,160,69,.4);border-radius:5px;color:var(--txt);font-size:12px;font-family:inherit;line-height:1.5;padding:5px 8px;resize:vertical;min-height:36px;max-height:100px;outline:none;}
 .nta:focus{border-color:var(--org);background:rgba(255,255,255,.1);}
 .nta::placeholder{color:var(--mut);}
 .nsw{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
@@ -136,28 +136,17 @@ tbody td{padding:5px 10px;white-space:nowrap;}
   </div>
 
   <div class="filters" id="filterBar">
-    <span class="fl">Building</span>
-    <div class="ms-wrap" id="ms-building"></div>
-
-    <span class="fl">Coordinator</span>
-    <div class="ms-wrap" id="ms-coord"></div>
-
-    <span class="fl">Planner</span>
-    <div class="ms-wrap" id="ms-planner"></div>
-
-    <span class="fl">PO Status</span>
-    <div class="ms-wrap" id="ms-postatus"></div>
-
-    <span class="fl">Line Status</span>
-    <div class="ms-wrap" id="ms-linestatus"></div>
-
+    <span class="fl">Building</span>    <div class="ms-wrap" id="ms-building"></div>
+    <span class="fl">Coordinator</span> <div class="ms-wrap" id="ms-coord"></div>
+    <span class="fl">Planner</span>     <div class="ms-wrap" id="ms-planner"></div>
+    <span class="fl">PO Status</span>   <div class="ms-wrap" id="ms-postatus"></div>
+    <span class="fl">Line Status</span> <div class="ms-wrap" id="ms-linestatus"></div>
     <span class="fl">Part Type</span>
     <select class="native" id="fPartType" onchange="applyFilters()">
       <option value="">All Parts</option>
       <option value="purchased">Purchased Only</option>
       <option value="manufactured">Manufactured Only</option>
     </select>
-
     <span class="fl">Timing</span>
     <select class="native" id="fTiming" onchange="applyFilters()">
       <option value="overdue">Overdue Only</option>
@@ -165,10 +154,8 @@ tbody td{padding:5px 10px;white-space:nowrap;}
       <option value="today">Due Today</option>
       <option value="week">Due This Week</option>
     </select>
-
     <span class="fl">Search</span>
     <input type="text" id="fSearch" placeholder="Part #, Order #, Planner..." oninput="applyFilters()">
-
     <button class="btn btn-s" onclick="clearFilters()">Clear</button>
   </div>
 
@@ -187,22 +174,17 @@ tbody td{padding:5px 10px;white-space:nowrap;}
           <button class="btn btn-grn btn-sm" onclick="exportCSV()">&#8595; Export CSV</button>
         </div>
       </div>
-
-      <!-- NOTES PANEL -->
       <div class="nb" id="nb">
         <div class="ni">&#128203;</div>
         <div style="flex:1;min-width:0;">
           <div class="nl" id="nlbl">Project Notes</div>
-          <textarea class="nta" id="nta" rows="2"
-            placeholder="Type notes here (e.g. 1 truck ships 6/22, 2 on 6/26)..."
-          ></textarea>
+          <textarea class="nta" id="nta" rows="2" placeholder="Type notes here..."></textarea>
         </div>
         <div class="nsw">
-          <button class="btn btn-p btn-sm" id="saveBtn" onclick="saveNote()">Save</button>
+          <button class="btn btn-p btn-sm" onclick="saveNote()">Save</button>
           <span class="nsv" id="nsv">&#10003; Saved</span>
         </div>
       </div>
-
       <div class="ts"><div id="tbl"></div></div>
     </div>
   </div>
@@ -219,148 +201,159 @@ let sortColKey=9, sortDir=1;
 let lastFiltered=[];
 let autoTimer=null;
 
-// ── MULTI-SELECT ENGINE ───────────────────────────────────────
-// Each filter: { id, values: Set, options: [] }
+// ── MULTI-SELECT ──────────────────────────────────────────────
+// State: map of id -> { options:[], selected: Set (empty = all) }
 const MS = {};
+let openPanel = null;
 
-function msCreate(wrapperId, onchange) {
-  const wrap = document.getElementById(wrapperId);
-  if (!wrap) return;
-  const id = wrapperId;
-  MS[id] = { selected: new Set(), options: [], search: '' };
-
+function msCreate(id) {
+  MS[id] = { options: [], selected: new Set() };
+  const wrap = document.getElementById(id);
   wrap.innerHTML = `
-    <div class="ms-btn" id="${id}-btn" tabindex="0">All</div>
-    <div class="ms-dropdown" id="${id}-dd">
-      <div class="ms-search"><input type="text" placeholder="Search..." id="${id}-search" oninput="msFilter('${id}')"></div>
-      <div class="ms-actions">
-        <span class="ms-action" onclick="msAll('${id}')">Select all</span>
-        &nbsp;·&nbsp;
-        <span class="ms-action" onclick="msNone('${id}')">Clear</span>
+    <div class="ms-trigger" id="${id}-trigger">
+      <span id="${id}-label">All</span>
+      <span class="ms-arrow">&#9660;</span>
+    </div>
+    <div class="ms-panel" id="${id}-panel">
+      <div class="ms-searchbox">
+        <input type="text" placeholder="Search..." id="${id}-search">
       </div>
-      <div id="${id}-list"></div>
+      <div class="ms-links">
+        <span class="ms-link" id="${id}-all">Select all</span>
+        <span class="ms-link" id="${id}-none">Clear all</span>
+      </div>
+      <div class="ms-list" id="${id}-list"></div>
     </div>`;
 
-  document.getElementById(`${id}-btn`).addEventListener('click', (e) => {
+  // Toggle panel open/close — stopPropagation prevents document click from closing
+  document.getElementById(`${id}-trigger`).addEventListener('click', function(e) {
     e.stopPropagation();
-    msToggle(id);
+    if (openPanel && openPanel !== id) msClose(openPanel);
+    const panel = document.getElementById(`${id}-panel`);
+    if (panel.classList.contains('show')) {
+      msClose(id);
+    } else {
+      panel.classList.add('show');
+      openPanel = id;
+      document.getElementById(`${id}-search`).focus();
+    }
   });
-  document.getElementById(`${id}-btn`).addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); msToggle(id); }
+
+  // Prevent ANY click inside panel from bubbling to document
+  document.getElementById(`${id}-panel`).addEventListener('click', function(e) {
+    e.stopPropagation();
   });
-  MS[id]._onChange = onchange;
+
+  document.getElementById(`${id}-search`).addEventListener('input', function() {
+    msRender(id, this.value.toLowerCase());
+  });
+
+  document.getElementById(`${id}-all`).addEventListener('click', function() {
+    MS[id].selected = new Set();
+    msRender(id);
+    msUpdateLabel(id);
+    applyFilters();
+  });
+
+  document.getElementById(`${id}-none`).addEventListener('click', function() {
+    // "Clear all" = select nothing = show nothing
+    // Better: treat as "select all" to avoid confusing empty state
+    MS[id].selected = new Set();
+    msRender(id);
+    msUpdateLabel(id);
+    applyFilters();
+  });
 }
 
-function msToggle(id) {
-  const dd = document.getElementById(`${id}-dd`);
-  const isOpen = dd.classList.contains('open');
-  // Close all dropdowns
-  Object.keys(MS).forEach(k => {
-    document.getElementById(`${k}-dd`).classList.remove('open');
-  });
-  if (!isOpen) {
-    dd.classList.add('open');
-    const si = document.getElementById(`${id}-search`);
-    if (si) setTimeout(() => si.focus(), 50);
-  }
+function msClose(id) {
+  document.getElementById(`${id}-panel`).classList.remove('show');
+  document.getElementById(`${id}-search`).value = '';
+  msRender(id); // re-render without search filter
+  if (openPanel === id) openPanel = null;
 }
 
 function msPopulate(id, opts) {
   MS[id].options = opts;
-  MS[id].selected = new Set(); // reset to all
-  msRender(id);
-  msUpdateBtn(id);
-}
-
-function msFilter(id) {
-  MS[id].search = document.getElementById(`${id}-search`).value.toLowerCase();
-  msRender(id);
-}
-
-function msRender(id) {
-  const {options, selected, search} = MS[id];
-  const list = document.getElementById(`${id}-list`);
-  const filtered = options.filter(o => !search || o.toLowerCase().includes(search));
-  if (!filtered.length) {
-    list.innerHTML = '<div class="ms-empty">No options</div>';
-    return;
-  }
-  list.innerHTML = filtered.map(o => {
-    const checked = selected.size === 0 || selected.has(o);
-    return `<div class="ms-option">
-      <input type="checkbox" id="${id}-${CSS.escape(o)}" ${checked?'checked':''} onchange="msToggleOpt('${id}',${JSON.stringify(o)},this.checked)">
-      <label for="${id}-${CSS.escape(o)}">${o}</label>
-    </div>`;
-  }).join('');
-}
-
-function msToggleOpt(id, val, checked) {
-  const m = MS[id];
-  // If currently "all selected" (empty set = all), clicking one unchecks all others
-  if (m.selected.size === 0) {
-    m.selected = new Set(m.options);
-    m.selected.delete(val);
-  } else {
-    if (checked) m.selected.add(val);
-    else m.selected.delete(val);
-    // If all selected, revert to empty (= all)
-    if (m.selected.size === m.options.length) m.selected = new Set();
-  }
-  msRender(id);
-  msUpdateBtn(id);
-  if (m._onChange) m._onChange();
-}
-
-function msAll(id) {
   MS[id].selected = new Set();
   msRender(id);
-  msUpdateBtn(id);
-  if (MS[id]._onChange) MS[id]._onChange();
+  msUpdateLabel(id);
 }
 
-function msNone(id) {
-  // "None" clears to show nothing — select all options then let user pick
-  // Actually make it so all are unchecked = filter shows nothing
-  // Better UX: treat as "all" reset
-  msAll(id);
+function msRender(id, search) {
+  const {options, selected} = MS[id];
+  const q = search !== undefined ? search : (document.getElementById(`${id}-search`).value || '').toLowerCase();
+  const list = document.getElementById(`${id}-list`);
+  const visible = q ? options.filter(o => o.toLowerCase().includes(q)) : options;
+
+  if (!visible.length) {
+    list.innerHTML = '<div class="ms-none">No options</div>';
+    return;
+  }
+
+  list.innerHTML = visible.map(opt => {
+    const checked = selected.size === 0 || selected.has(opt);
+    const eid = `${id}-opt-${opt.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    return `<div class="ms-item">
+      <input type="checkbox" id="${eid}" ${checked?'checked':''} data-val="${opt.replace(/"/g,'&quot;')}" data-id="${id}">
+      <label for="${eid}">${opt}</label>
+    </div>`;
+  }).join('');
+
+  // Attach change listeners
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', function() {
+      const val = this.getAttribute('data-val');
+      const msId = this.getAttribute('data-id');
+      const m = MS[msId];
+      if (m.selected.size === 0) {
+        // Currently "all" — clicking one deselects all others
+        m.selected = new Set(m.options);
+        m.selected.delete(val);
+      } else {
+        if (this.checked) m.selected.add(val);
+        else m.selected.delete(val);
+        // If all selected, go back to "all" (empty)
+        if (m.selected.size === m.options.length) m.selected = new Set();
+      }
+      msRender(msId);
+      msUpdateLabel(msId);
+      applyFilters();
+    });
+  });
 }
 
-function msUpdateBtn(id) {
+function msUpdateLabel(id) {
   const {selected, options} = MS[id];
-  const btn = document.getElementById(`${id}-btn`);
-  if (!btn) return;
+  const trigger = document.getElementById(`${id}-trigger`);
+  const label   = document.getElementById(`${id}-label`);
+  if (!trigger || !label) return;
   if (selected.size === 0 || selected.size === options.length) {
-    btn.textContent = 'All';
-    btn.classList.remove('active');
+    label.textContent = 'All';
+    trigger.classList.remove('has-filter');
   } else if (selected.size === 1) {
-    btn.textContent = [...selected][0];
-    btn.classList.add('active');
+    label.textContent = [...selected][0];
+    trigger.classList.add('has-filter');
   } else {
-    btn.textContent = `${selected.size} selected`;
-    btn.classList.add('active');
+    label.textContent = selected.size + ' selected';
+    trigger.classList.add('has-filter');
   }
 }
 
 function msMatches(id, val) {
   const {selected} = MS[id];
-  if (selected.size === 0) return true; // all
-  return selected.has(val || '');
+  return selected.size === 0 || selected.has(val || '');
 }
 
 function msReset(id) {
   MS[id].selected = new Set();
-  MS[id].search = '';
-  const si = document.getElementById(`${id}-search`);
-  if (si) si.value = '';
+  document.getElementById(`${id}-search`).value = '';
   msRender(id);
-  msUpdateBtn(id);
+  msUpdateLabel(id);
 }
 
-// Close dropdowns when clicking outside
-document.addEventListener('click', () => {
-  Object.keys(MS).forEach(k => {
-    document.getElementById(`${k}-dd`)?.classList.remove('open');
-  });
+// Close panels when clicking outside
+document.addEventListener('click', function() {
+  if (openPanel) msClose(openPanel);
 });
 
 // ── NOTES ────────────────────────────────────────────────────
@@ -380,62 +373,57 @@ function saveNote() {
   if (v) notes[selProj] = v; else delete notes[selProj];
   saveNotes().then(() => {
     const m = document.getElementById('nsv');
-    if (m) { m.classList.add('show'); setTimeout(() => m.classList.remove('show'), 2000); }
+    if (m) { m.classList.add('show'); setTimeout(()=>m.classList.remove('show'), 2000); }
     renderTree();
-  }).catch(e => console.error('Notes save error:', e));
+  });
 }
 
 function showNotesBar(proj) {
   const nb = document.getElementById('nb');
-  const ta = document.getElementById('nta');
-  if (!proj) {
-    nb.classList.remove('open');
-    return;
-  }
+  if (!proj) { nb.classList.remove('open'); return; }
   nb.classList.add('open');
   document.getElementById('nlbl').textContent = proj;
-  ta.value = notes[proj] || '';
-  document.getElementById('nsv').classList.remove('show');
-  // Clear old listeners by replacing element
-  const newTa = ta.cloneNode(true);
-  ta.parentNode.replaceChild(newTa, ta);
+  // Replace textarea to get fresh event listeners
+  const oldTa = document.getElementById('nta');
+  const newTa = document.createElement('textarea');
+  newTa.className = 'nta';
+  newTa.id = 'nta';
+  newTa.rows = 2;
+  newTa.placeholder = 'Type notes here (e.g. 1 truck ships 6/22, 2 on 6/26)...';
+  newTa.value = notes[proj] || '';
+  oldTa.parentNode.replaceChild(newTa, oldTa);
   newTa.addEventListener('input', () => {
     clearTimeout(autoTimer);
     autoTimer = setTimeout(saveNote, 1500);
   });
   newTa.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNote();
+    if ((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); saveNote(); }
   });
-  // Focus so user can type immediately
+  document.getElementById('nsv').classList.remove('show');
   setTimeout(() => newTa.focus(), 30);
 }
 
-// ── FILTERS ──────────────────────────────────────────────────
+// ── FILTER INIT ───────────────────────────────────────────────
 function initFilters() {
-  msCreate('ms-building',   applyFilters);
-  msCreate('ms-coord',      applyFilters);
-  msCreate('ms-planner',    applyFilters);
-  msCreate('ms-postatus',   applyFilters);
-  msCreate('ms-linestatus', applyFilters);
+  ['ms-building','ms-coord','ms-planner','ms-postatus','ms-linestatus'].forEach(msCreate);
 }
 
 function populateFilters() {
-  const buildings=new Set(), coords=new Set(), planners=new Set(),
-        statuses=new Set(), lineStatuses=new Set();
+  const B=new Set(), C=new Set(), P=new Set(), S=new Set(), L=new Set();
   Object.entries(PARTS).forEach(([key,pl]) => {
-    coords.add(key.split('|||')[0]);
+    C.add(key.split('|||')[0]);
     pl.forEach(p => {
-      if(p[12]) buildings.add(p[12]);
-      if(p[14]) planners.add(p[14]);
-      if(p[1])  statuses.add(p[1]);
-      if(p[3])  lineStatuses.add(p[3]);
+      if(p[12]) B.add(p[12]);
+      if(p[14]) P.add(p[14]);
+      if(p[1])  S.add(p[1]);
+      if(p[3])  L.add(p[3]);
     });
   });
-  msPopulate('ms-building',   [...buildings].sort());
-  msPopulate('ms-coord',      [...coords].sort());
-  msPopulate('ms-planner',    [...planners].sort());
-  msPopulate('ms-postatus',   [...statuses].sort());
-  msPopulate('ms-linestatus', [...lineStatuses].sort());
+  msPopulate('ms-building',   [...B].sort());
+  msPopulate('ms-coord',      [...C].sort());
+  msPopulate('ms-planner',    [...P].sort());
+  msPopulate('ms-postatus',   [...S].sort());
+  msPopulate('ms-linestatus', [...L].sort());
 }
 
 function clearFilters() {
@@ -448,6 +436,7 @@ function clearFilters() {
   applyFilters();
 }
 
+// ── FILTERING ─────────────────────────────────────────────────
 function matchTiming(sd) {
   const t = document.getElementById('fTiming').value;
   const weekEnd = new Date(Date.now()+7*864e5).toISOString().slice(0,10);
@@ -461,11 +450,11 @@ function getFilteredParts(ignoreCoordProj) {
   const fpt = document.getElementById('fPartType').value;
   const fq  = document.getElementById('fSearch').value.toLowerCase();
   const out = [];
-  Object.entries(SUMMARY).forEach(([coord,projs]) => {
+  Object.entries(SUMMARY).forEach(([coord, projs]) => {
     if (!msMatches('ms-coord', coord)) return;
-    if (!ignoreCoordProj && selCoord && coord!==selCoord) return;
+    if (!ignoreCoordProj && selCoord && coord !== selCoord) return;
     Object.keys(projs).forEach(proj => {
-      if (!ignoreCoordProj && selProj && proj!==selProj) return;
+      if (!ignoreCoordProj && selProj && proj !== selProj) return;
       (PARTS[coord+'|||'+proj]||[]).forEach(p => {
         if (!msMatches('ms-building',   p[12])) return;
         if (!msMatches('ms-planner',    p[14])) return;
@@ -474,7 +463,7 @@ function getFilteredParts(ignoreCoordProj) {
         if (fpt==='purchased'    && !p[13]) return;
         if (fpt==='manufactured' &&  p[13]) return;
         if (!matchTiming(p[9])) return;
-        if (fq && !((p[2]||'')+(p[0]||'')+proj+(p[14]||'')).toLowerCase().includes(fq)) return;
+        if (fq && !((p[2]||'')+(p[0]||'')+proj+(p[14]||'')+(p[1]||'')).toLowerCase().includes(fq)) return;
         out.push({coord,proj,p});
       });
     });
@@ -487,13 +476,12 @@ function applyFilters() {
   renderStats(); renderTree(); renderTable();
 }
 
-// ── STATS ────────────────────────────────────────────────────
+// ── STATS ─────────────────────────────────────────────────────
 function renderStats() {
   let openQ=0,inv=0,val=0,od=0,dt=0;
   lastFiltered.forEach(({p}) => {
     openQ+=p[6]||0; inv+=p[7]||0; val+=p[8]||0;
-    if(p[9]&&p[9]<TODAY) od++;
-    if(p[9]===TODAY) dt++;
+    if(p[9]&&p[9]<TODAY)od++; if(p[9]===TODAY)dt++;
   });
   document.getElementById('stats').innerHTML=`
     <div class="sc"><div class="lbl">Lines</div><div class="val c-wht">${lastFiltered.length.toLocaleString()}</div><div class="sub">filtered</div></div>
@@ -506,16 +494,14 @@ function renderStats() {
 // ── PIVOT TREE ────────────────────────────────────────────────
 function renderTree() {
   const treeRows = getFilteredParts(true);
-  const tc = {};
+  const tc={};
   treeRows.forEach(({coord,proj,p}) => {
-    if(!tc[coord]) tc[coord]={};
-    if(!tc[coord][proj]) tc[coord][proj]={cnt:0,open:0,inv:0};
-    tc[coord][proj].cnt++;
-    tc[coord][proj].open+=p[6]||0;
-    tc[coord][proj].inv +=p[7]||0;
+    if(!tc[coord])tc[coord]={};
+    if(!tc[coord][proj])tc[coord][proj]={cnt:0,open:0,inv:0};
+    tc[coord][proj].cnt++; tc[coord][proj].open+=p[6]||0; tc[coord][proj].inv+=p[7]||0;
   });
-  const coords = Object.keys(tc).sort();
-  document.getElementById('pc').textContent = coords.length+' coords';
+  const coords=Object.keys(tc).sort();
+  document.getElementById('pc').textContent=coords.length+' coords';
   let html='';
   coords.forEach(coord => {
     const projs=tc[coord], pks=Object.keys(projs).sort();
@@ -532,7 +518,7 @@ function renderTree() {
           <span class="pn">All Projects</span><span class="bdg">${total}</span>
         </div>
         ${pks.map(proj=>{
-          const d=projs[proj], short=proj.replace(/^S-|^T-/,'');
+          const d=projs[proj],short=proj.replace(/^S-|^T-/,'');
           return `<div class="pr ${selProj===proj&&selCoord===coord?'act':''}" onclick="selectProj(${JSON.stringify(proj)},${JSON.stringify(coord)})">
             <span class="pn">${short}${notes[proj]?'<span class="nd"></span>':''}</span>
             <span class="bdg ${d.open>d.inv?'red':'grn'}">${d.cnt}</span>
@@ -541,11 +527,11 @@ function renderTree() {
       </div>
     </div>`;
   });
-  document.getElementById('tree').innerHTML = html||'<div class="empty-msg">No results.</div>';
+  document.getElementById('tree').innerHTML=html||'<div class="empty-msg">No results.</div>';
 }
 
 function toggleCoord(c) {
-  selCoord=selCoord===c?null:c; if(selCoord!==c) selProj=null; else selProj=null;
+  selCoord=selCoord===c?null:c; selProj=null;
   showNotesBar(null); applyFilters();
 }
 function selectProj(proj,coord) {
@@ -608,12 +594,12 @@ function renderTable() {
   document.getElementById('tbl').innerHTML=`<table>${thead}${tbody}</table>`+overflow;
 }
 
-function setSort(k) {
+function setSort(k){
   if(sortColKey===k)sortDir*=-1; else{sortColKey=k;sortDir=1;}
   renderTable();
 }
 
-// ── EXPORT CSV ────────────────────────────────────────────────
+// ── EXPORT ────────────────────────────────────────────────────
 function exportCSV() {
   const headers=['Coordinator','Project','Building','Order #','Part #','Planner','Type','PO Status','Line Status','Ord Qty','Shipped Qty','Open Qty','Inventory','Value $','Ship Date','Due Date','Notes'];
   const esc=v=>{const s=String(v==null?'':v);return(s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:`${s}`;};
