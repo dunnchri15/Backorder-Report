@@ -473,7 +473,7 @@ function getFilteredParts(ignoreCoordProj) {
   const out = [];
   Object.entries(SUMMARY).forEach(([coord, projs]) => {
     if (!msMatches('ms-coord', coord)) return;
-    // selCoord is synced with ms-coord, no need for double check
+    if (!ignoreCoordProj && selCoord && coord !== selCoord) return;
     Object.keys(projs).forEach(proj => {
       if (!ignoreCoordProj && selProj && proj !== selProj) return;
       (PARTS[coord+'|||'+proj]||[]).forEach(p => {
@@ -493,16 +493,12 @@ function getFilteredParts(ignoreCoordProj) {
 }
 
 function applyFilters() {
-  // Sync selCoord with ms-coord filter if exactly one selected
-  var coordSel = MS['ms-coord'] ? MS['ms-coord'].selected : null;
-  if (coordSel !== null && coordSel.size === 1) {
-    var single = [...coordSel][0];
-    if (selCoord !== single) { selCoord = single; selProj = null; }
-  } else if (coordSel === null || coordSel.size === 0 || (coordSel && coordSel.size > 1)) {
-    // Multiple or all coords selected - clear left panel selection
-    if (MS['ms-coord'] && coordSel !== null && coordSel.size !== 1) {
-      selCoord = null; selProj = null;
-    }
+  // If ms-coord has multiple or all selected, clear left-panel single selection
+  var cs = MS['ms-coord'] ? MS['ms-coord'].selected : null;
+  if (cs !== null && cs.size !== 1) {
+    selCoord = null; selProj = null;
+  } else if (cs !== null && cs.size === 1) {
+    selCoord = [...cs][0]; selProj = null;
   }
   lastFiltered = getFilteredParts(false);
   renderStats(); renderTree(); renderTable();
@@ -564,14 +560,15 @@ function renderTree() {
 
 function toggleCoord(c) {
   if (selCoord === c) {
-    selCoord = null; selProj = null;
-    // Reset the coordinator MS filter when deselecting
+    selCoord = null;
+    selProj = null;
     msReset('ms-coord');
   } else {
-    selCoord = c; selProj = null;
-    // Set the coordinator MS filter to match
+    selCoord = c;
+    selProj = null;
     MS['ms-coord'].selected = new Set([c]);
     msUpdateLabel('ms-coord');
+    msRender('ms-coord');
   }
   applyFilters();
 }
@@ -601,7 +598,7 @@ const COLS=[
   {l:'Value $',    k:8,       fn:r=>`<td class="nr">${fmtC(r.p[8])}</td>`},
   {l:'Ship Date',  k:9,       fn:r=>`<td class="${r.p[9]&&r.p[9]<TODAY?'od':'mut'}">${r.p[9]||'—'}</td>`},
   {l:'Due Date',   k:10,      fn:r=>`<td class="mut">${r.p[10]||'—'}</td>`},
-  {l:'Notes',      k:'notes', fn:r=>`<td><span class="nc" style="cursor:pointer;padding:2px 8px;border-radius:4px;background:${notes[r.proj]?'rgba(240,160,69,.2)':'rgba(255,255,255,.05)'};color:${notes[r.proj]?'#f0a045':'#7a8099'};font-size:10px;" onclick="openNotes(${JSON.stringify(r.proj)},${JSON.stringify(r.coord)})" title="${(notes[r.proj]||'Click to add note').replace(/"/g,'&quot;')}">${notes[r.proj]?'&#128203; '+notes[r.proj].substring(0,30)+(notes[r.proj].length>30?'...':''):'+ note'}</span></td>`},
+  {l:'Notes', k:'notes', fn:r=>`<td><span class="note-btn" data-proj="${r.proj.replace(/"/g,'&quot;')}" data-coord="${r.coord.replace(/"/g,'&quot;')}" style="cursor:pointer;padding:2px 8px;border-radius:4px;display:inline-block;background:${notes[r.proj]?'rgba(240,160,69,.2)':'rgba(255,255,255,.05)'};color:${notes[r.proj]?'#f0a045':'#7a8099'};font-size:10px;">${notes[r.proj]?'&#128203; '+notes[r.proj].substring(0,25)+(notes[r.proj].length>25?'...':''):'+ note'}</span></td>`},
 ];
 
 function fmt(v){const n=parseFloat(v);return isNaN(n)?'—':Math.round(n).toLocaleString();}
@@ -680,6 +677,15 @@ document.getElementById('notesOverlay').addEventListener('click', function(e) {
 // Ctrl+Enter to save
 document.getElementById('notesText').addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveNoteModal(); }
+});
+
+// Event delegation for note buttons in table
+document.getElementById('tbl').addEventListener('click', function(e) {
+  var btn = e.target.closest('.note-btn');
+  if (!btn) return;
+  var proj = btn.getAttribute('data-proj');
+  var coord = btn.getAttribute('data-coord');
+  openNotes(proj, coord);
 });
 </script>
 </body>
