@@ -185,10 +185,10 @@ async function uploadFeeders() {
       const resp = await fetch('/upload-feeder', { method: 'POST', body: fd });
       const data = await resp.json();
       if (data.ok) {
-        statusEl.textContent = `✓ ${data.new_parts.toLocaleString()} parts`;
+        statusEl.textContent = `✓ ${data.this_file_parts.toLocaleString()} parts`;
         statusEl.className = 'fi-status fi-done';
-        totalNew += data.new_parts;
-        totalParts = data.total_parts;
+        totalNew += data.this_file_parts;
+        totalParts = data.cumulative_total;
       } else {
         statusEl.textContent = '✗ Error';
         statusEl.className = 'fi-status fi-error';
@@ -207,10 +207,14 @@ async function uploadFeeders() {
     summary.style.color = 'var(--red)';
     summary.textContent = 'Errors: ' + errors.join('; ');
   } else {
-    summary.style.color = 'var(--grn)';
-    summary.textContent = `✓ All done — ${totalParts.toLocaleString()} total purchased parts loaded. Re-upload the backorder report to apply tagging.`;
+    const healthy = totalParts > 100000;
+    summary.style.color = healthy ? 'var(--grn)' : 'var(--org)';
+    summary.textContent = healthy
+      ? `✓ All done — ${totalParts.toLocaleString()} purchased parts loaded. Re-upload the backorder report to apply.`
+      : `⚠ Only ${totalParts.toLocaleString()} parts loaded (expected ~337,000). Try uploading all 4 feeder files again.`;
   }
-  btn.textContent = 'Done';
+  btn.disabled = false;
+  btn.textContent = 'Upload Feeder CSVs (one at a time)';
 }
 </script>
 </body>
