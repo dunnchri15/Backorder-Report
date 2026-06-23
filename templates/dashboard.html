@@ -180,6 +180,27 @@ tbody td{padding:5px 10px;white-space:nowrap;}
   </div>
 </div>
 
+<div id="notesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#1a1d27;border:1px solid #2e3350;border-radius:12px;padding:24px;width:500px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f0a045;margin-bottom:4px;">PROJECT NOTES</div>
+        <div id="notesTitle" style="font-size:13px;font-weight:600;color:#e8eaf0;max-width:380px;word-break:break-word;"></div>
+      </div>
+      <button id="notesCloseBtn" style="background:none;border:none;color:#7a8099;font-size:24px;cursor:pointer;line-height:1;padding:0 2px;margin-left:10px;flex-shrink:0;">&times;</button>
+    </div>
+    <textarea id="notesText" rows="5"
+      style="display:block;width:100%;background:#22263a;border:1px solid #f0a045;border-radius:6px;color:#e8eaf0;font-size:13px;font-family:system-ui,sans-serif;line-height:1.6;padding:10px 12px;resize:vertical;min-height:100px;box-sizing:border-box;outline:none;"
+      placeholder="Add notes (e.g. 1 truck ships 6/22, 2 on 6/26)..."
+    ></textarea>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
+      <span id="notesSavedMsg" style="font-size:11px;color:#3cb97a;opacity:0;transition:opacity 0.3s;">&#10003; Saved</span>
+      <button id="notesCloseBtn2" style="background:#22263a;color:#7a8099;border:1px solid #2e3350;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Close</button>
+      <button id="notesSaveBtn" style="background:#e8533a;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Save Note</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const PARTS   = {{ parts_json|safe }};
 const SUMMARY = {{ summary_json|safe }};
@@ -625,26 +646,5 @@ document.getElementById('notesText').addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveNoteModal(); }
 });
 </script>
-
-<div id="notesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;">
-  <div style="background:#1a1d27;border:1px solid #2e3350;border-radius:12px;padding:24px;width:500px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
-      <div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f0a045;margin-bottom:4px;">PROJECT NOTES</div>
-        <div id="notesTitle" style="font-size:13px;font-weight:600;color:#e8eaf0;max-width:380px;word-break:break-word;"></div>
-      </div>
-      <button id="notesCloseBtn" style="background:none;border:none;color:#7a8099;font-size:24px;cursor:pointer;line-height:1;padding:0 2px;margin-left:10px;flex-shrink:0;">&times;</button>
-    </div>
-    <textarea id="notesText" rows="5"
-      style="display:block;width:100%;background:#22263a;border:1px solid #f0a045;border-radius:6px;color:#e8eaf0;font-size:13px;font-family:system-ui,sans-serif;line-height:1.6;padding:10px 12px;resize:vertical;min-height:100px;box-sizing:border-box;outline:none;"
-      placeholder="Add notes (e.g. 1 truck ships 6/22, 2 on 6/26)..."
-    ></textarea>
-    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
-      <span id="notesSavedMsg" style="font-size:11px;color:#3cb97a;opacity:0;transition:opacity 0.3s;">&#10003; Saved</span>
-      <button id="notesCloseBtn2" style="background:#22263a;color:#7a8099;border:1px solid #2e3350;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Close</button>
-      <button id="notesSaveBtn" style="background:#e8533a;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Save Note</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
