@@ -1,0 +1,25 @@
+Backorder Dashboard
+Upload today's backorder report to refresh the dashboard.
+Notes from previous uploads are always preserved.
+
+{% if has_data and meta %}
+✓ Data loaded — {{ meta.report_date }}
+{{ meta.report_name }} · {{ "{:,}".format(meta.row_count) }} lines{% if has_feeder %} · Feeder data active{% endif %} · Uploaded {{ meta.uploaded_at }}
+{% endif %} {% if error %}
+⚠ Error processing file: {{ error }}
+{% endif %}
+Backorder Report
+No file chosen
+📊
+Click to browse or drag and drop
+Feeder CSVs (part source data)
+No file chosen
+📂
+{% if has_feeder %}Feeder data already loaded — only re-upload if it changed{% else %}Select all 4 part-source CSV files at once{% endif %}
+Upload & Process
+1
+Upload the backorder XLSX or CSV daily — notes and feeder data persist across uploads.
+2
+Feeder CSVs tag parts as purchased or manufactured. Only re-upload when the source data changes.
+3
+Add notes per project in the dashboard — click any project in the left panel to annotate it.
