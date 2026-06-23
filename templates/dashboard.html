@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Backorder Dashboard — Revolution Group</title>
+<title>Irwin Backorder Report</title>
 <style>
 :root{--bg:#0f1117;--surf:#1a1d27;--surf2:#22263a;--bdr:#2e3350;--red:#e8533a;--org:#f0a045;--grn:#3cb97a;--txt:#e8eaf0;--mut:#7a8099;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -65,6 +65,7 @@ input[type=text]{width:155px;}
 
 .nb{background:rgba(240,160,69,.07);border-bottom:1px solid rgba(240,160,69,.2);padding:7px 14px;display:none;align-items:flex-start;gap:8px;flex-shrink:0;}
 .nb.visible{display:flex;}
+.nta{pointer-events:auto !important;user-select:text !important;}
 .ni{color:var(--org);font-size:12px;margin-top:1px;flex-shrink:0;}
 .nl{font-size:9px;font-weight:700;color:var(--org);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
 .nta{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(240,160,69,.35);border-radius:4px;color:var(--txt);font-size:12px;font-family:inherit;outline:none;line-height:1.5;min-height:34px;max-height:90px;padding:4px 7px;resize:vertical;}
@@ -101,7 +102,7 @@ tbody td{padding:5px 10px;white-space:nowrap;}
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="logo">REVOLUTION <span>GROUP</span></div>
+    <div class="logo">IRWIN <span>BACKORDER REPORT</span></div>
     <a href="/" class="upload-link">&#8679; Upload New Report</a>
     <div class="spacer"></div>
     <div class="date-badge">Report: {{ meta.report_date }}</div>
@@ -116,6 +117,8 @@ tbody td{padding:5px 10px;white-space:nowrap;}
     <select id="fPlanner" onchange="applyFilters()"><option value="">All</option></select>
     <span class="fl">PO Status</span>
     <select id="fStatus" onchange="applyFilters()"><option value="">All</option></select>
+    <span class="fl">Line Status</span>
+    <select id="fLineStatus" onchange="applyFilters()"><option value="">All</option></select>
     <span class="fl">Part Type</span>
     <select id="fPartType" onchange="applyFilters()">
       <option value="">All Parts</option>
@@ -201,14 +204,20 @@ function saveNote() {
 
 function showNotesBar(proj) {
   const bar = document.getElementById('nb');
-  if (!proj) { bar.classList.remove('visible'); return; }
+  if (!proj) { bar.style.display='none'; bar.classList.remove('visible'); return; }
+  bar.style.display='flex';
   bar.classList.add('visible');
   document.getElementById('nlbl').textContent = proj;
   const ta = document.getElementById('nta');
   ta.value = notes[proj] || '';
-  ta.oninput = () => { clearTimeout(autoTimer); autoTimer = setTimeout(saveNote, 1500); };
-  ta.onblur  = saveNote;
+  // Re-attach events fresh each time
+  ta.oninput = null; ta.onblur = null; ta.onchange = null;
+  ta.addEventListener('input', () => { clearTimeout(autoTimer); autoTimer = setTimeout(saveNote, 1500); });
+  ta.addEventListener('blur', saveNote);
+  ta.addEventListener('change', saveNote);
   document.getElementById('nsv').classList.remove('show');
+  // Focus after short delay so user can type immediately
+  setTimeout(() => ta.focus(), 50);
 }
 
 // ── TIMING ───────────────────────────────────────────────────
@@ -223,13 +232,14 @@ function matchTiming(sd) {
 
 // ── FILTERS ──────────────────────────────────────────────────
 function populateFilters() {
-  const buildings=new Set(), coords=new Set(), planners=new Set(), statuses=new Set();
+  const buildings=new Set(), coords=new Set(), planners=new Set(), statuses=new Set(), lineStatuses=new Set();
   Object.entries(PARTS).forEach(([key,pl]) => {
     coords.add(key.split('|||')[0]);
     pl.forEach(p => {
       if(p[12]) buildings.add(p[12]);
       if(p[14]) planners.add(p[14]);
       if(p[1])  statuses.add(p[1]);
+      if(p[3])  lineStatuses.add(p[3]);
     });
   });
   const fill = (id,opts) => {
@@ -238,10 +248,11 @@ function populateFilters() {
   };
   fill('fBuilding',buildings); fill('fCoord',coords);
   fill('fPlanner',planners);   fill('fStatus',statuses);
+  fill('fLineStatus',lineStatuses);
 }
 
 function clearFilters() {
-  ['fBuilding','fCoord','fPlanner','fStatus','fSearch'].forEach(id=>document.getElementById(id).value='');
+  ['fBuilding','fCoord','fPlanner','fStatus','fLineStatus','fSearch'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fTiming').value='overdue';
   document.getElementById('fPartType').value='';
   selCoord=null; selProj=null;
@@ -253,6 +264,7 @@ function getFilteredParts(ignoreCoordProj) {
   const fc =document.getElementById('fCoord').value;
   const fp =document.getElementById('fPlanner').value;
   const fs =document.getElementById('fStatus').value;
+  const fls=document.getElementById('fLineStatus').value;
   const fpt=document.getElementById('fPartType').value;
   const fq =document.getElementById('fSearch').value.toLowerCase();
   const out=[];
@@ -265,6 +277,7 @@ function getFilteredParts(ignoreCoordProj) {
         if(fb  && p[12]!==fb)  return;
         if(fp  && p[14]!==fp)  return;
         if(fs  && p[1] !==fs)  return;
+        if(fls && p[3] !==fls) return;
         if(fpt==='purchased'    && !p[13]) return;
         if(fpt==='manufactured' &&  p[13]) return;
         if(!matchTiming(p[9])) return;
