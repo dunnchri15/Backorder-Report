@@ -15,11 +15,12 @@ app.secret_key = os.environ.get("SECRET_KEY", "rg-backorder-2026")
 DATA_DIR = os.environ.get("DATA_DIR", "/tmp/backorder_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-PARTS_FILE  = os.path.join(DATA_DIR, "parts.pkl")
-NOTES_FILE  = os.path.join(DATA_DIR, "notes.json")
-FEEDER_FILE = os.path.join(DATA_DIR, "feeder.json")
-META_FILE   = os.path.join(DATA_DIR, "meta.json")
-ERROR_FILE  = os.path.join(DATA_DIR, "last_error.txt")
+PARTS_FILE   = os.path.join(DATA_DIR, "parts.pkl")
+NOTES_FILE   = os.path.join(DATA_DIR, "notes.json")
+FEEDER_FILE  = os.path.join(DATA_DIR, "feeder.json")
+PLANNER_FILE = os.path.join(DATA_DIR, "planner.json")
+META_FILE    = os.path.join(DATA_DIR, "meta.json")
+ERROR_FILE   = os.path.join(DATA_DIR, "last_error.txt")
 
 PURCHASED_PLANNERS = {"boes","craig","devowe","glynn","salcedo","slifer","zhang","tracy"}
 
@@ -57,6 +58,14 @@ def load_meta():
 
 def save_meta(m):
     with open(META_FILE,"w") as f: json.dump(m, f)
+
+def load_planner():
+    try:
+        with open(PLANNER_FILE) as f: return json.load(f)
+    except: return {}
+
+def save_planner(d):
+    with open(PLANNER_FILE,"w") as f: json.dump(d, f)
 
 def save_error(msg):
     try:
@@ -155,6 +164,7 @@ def process_rows(headers, rows, feeder_set):
 
     today = date.today().strftime("%Y-%m-%d")
     parts, summary, max_date, row_count = {}, {}, "", 0
+    _planner_cache = load_planner()  # cache once before loop
 
     for row in rows:
         if not any(c for c in row if c is not None and str(c).strip()):
@@ -184,9 +194,13 @@ def process_rows(headers, rows, feeder_set):
         elif feeder_set is not None:
             # No Purchased column — fall back to feeder set matching
             purchased = 1 if part_no in feeder_set else 0
+        # Get planner from row if column exists, otherwise look up from feeder
+        row_planner = g(row,"planner")
+        if not row_planner:
+            row_planner = _planner_cache.get(part_no, '')
         p = [g(row,"order"), g(row,"po_st"), part_no, g(row,"line_st"),
              oqty, sqty, opqty, inv, val, ship, due, overdue,
-             g(row,"bldg"), purchased, g(row,"planner")]
+             g(row,"bldg"), purchased, row_planner]
         parts.setdefault(key, []).append(p)
         summary.setdefault(coord, {})
         summary[coord].setdefault(proj, {"open_qty":0,"inventory":0,"value":0,"count":0,"overdue":0})
@@ -197,27 +211,34 @@ def process_rows(headers, rows, feeder_set):
     return parts, summary, max_date or today, row_count
 
 def parse_one_feeder_csv(file_bytes):
-    """Parse a single feeder CSV and return set of purchased part numbers."""
+    """Parse a single feeder CSV and return (set of purchased part numbers, part->planner dict)."""
     purchased = set()
+    planner_map = {}
     for enc in ("utf-8-sig","latin-1","utf-8"):
         try:
             text = file_bytes.decode(enc)
             reader = csv.DictReader(io.StringIO(text))
             for row in reader:
-                src     = row.get("Part Source","").lower()
-                planner = row.get("Planner","").lower().strip()
-                part_no = row.get("Part No","").strip()
+                src        = row.get("Part Source","").lower()
+                planner    = row.get("Planner","").strip()
+                part_no    = row.get("Part No","").strip()
                 if not part_no: continue
-                is_purch = ("purchased" in src) or ("manufactured" in src and planner in PURCHASED_PLANNERS)
+                # Store planner mapping
+                if planner and part_no not in planner_map:
+                    planner_map[part_no] = planner
+                    base = part_no.split(':')[0].strip()
+                    if base != part_no and base not in planner_map:
+                        planner_map[base] = planner
+                # Purchased logic
+                is_purch = ("purchased" in src) or ("manufactured" in src and planner.lower() in PURCHASED_PLANNERS)
                 if is_purch:
                     purchased.add(part_no)
-                    # Also add base number before colon variant suffix (e.g. 'PART:EBLK' -> 'PART')
                     base = part_no.split(':')[0].strip()
                     if base != part_no:
                         purchased.add(base)
-            return purchased
+            return purchased, planner_map
         except: continue
-    return purchased
+    return purchased, {}
 
 
 # ── Routes ────────────────────────────────────────────────────
@@ -277,17 +298,23 @@ def upload_feeder():
         return jsonify({"ok": False, "error": "No file received"})
     try:
         raw = f.read()
-        new_parts = parse_one_feeder_csv(raw)
+        new_parts, new_planner = parse_one_feeder_csv(raw)
         existing = load_feeder() or set()
         merged = existing | new_parts
         save_feeder(merged)
-        # Re-tag existing backorder data
+        # Merge planner map
+        existing_planner = load_planner()
+        existing_planner.update(new_planner)
+        save_planner(existing_planner)
+        # Re-tag existing backorder data and update planners
         data = load_parts()
         if data:
             for key, part_list in data["parts"].items():
                 for p in part_list:
-                    pv = p[2]  # part_no already cleaned
+                    pv = p[2]
                     p[13] = 1 if pv in merged else 0
+                    if not p[14]:  # only fill planner if missing
+                        p[14] = existing_planner.get(pv, '')
             save_parts(data)
         return jsonify({
             "ok": True,
