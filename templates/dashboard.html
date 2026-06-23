@@ -364,26 +364,25 @@ async function saveNotes() {
 function showNotesBar(proj) {
   if (!proj) return;
   if (openPanel) msClose(openPanel);
-  document.getElementById('modalProjName').textContent = proj;
-  const ta = document.getElementById('modalNta');
-  ta.value = notes[proj] || '';
-  document.getElementById('modalSaved').style.opacity = '0';
-  document.getElementById('notesDlg').showModal();
-  setTimeout(() => ta.focus(), 100);
+  selProj = proj;
+  var overlay = document.getElementById('notesOverlay');
+  document.getElementById('notesTitle').textContent = proj;
+  document.getElementById('notesText').value = notes[proj] || '';
+  document.getElementById('notesSavedMsg').style.opacity = '0';
+  overlay.style.display = 'flex';
+  setTimeout(function() { document.getElementById('notesText').focus(); }, 150);
 }
 
-function closeNotesDlg() {
-  document.getElementById('notesDlg').close();
-}
+function closeNotesDlg() { document.getElementById('notesOverlay').style.display='none'; }
 
 function saveNoteModal() {
   if (!selProj) return;
-  const v = document.getElementById('modalNta').value.trim();
+  var v = document.getElementById('notesText').value.trim();
   if (v) notes[selProj] = v; else delete notes[selProj];
-  saveNotes().then(() => {
-    const m = document.getElementById('modalSaved');
+  saveNotes().then(function() {
+    var m = document.getElementById('notesSavedMsg');
     m.style.opacity = '1';
-    setTimeout(() => m.style.opacity = '0', 2000);
+    setTimeout(function() { m.style.opacity = '0'; }, 2000);
     renderTree();
     renderTable();
   });
@@ -608,22 +607,44 @@ function exportCSV() {
 initFilters();
 populateFilters();
 applyFilters();
+
+// Wire notes overlay buttons
+document.getElementById('notesCloseBtn').addEventListener('click', function() {
+  document.getElementById('notesOverlay').style.display = 'none';
+});
+document.getElementById('notesCloseBtn2').addEventListener('click', function() {
+  document.getElementById('notesOverlay').style.display = 'none';
+});
+document.getElementById('notesSaveBtn').addEventListener('click', saveNoteModal);
+// Close on backdrop click
+document.getElementById('notesOverlay').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+// Ctrl+Enter to save
+document.getElementById('notesText').addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveNoteModal(); }
+});
 </script>
 
-<dialog id="notesDlg" style="background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:24px;width:480px;max-width:95vw;color:var(--txt);box-shadow:0 16px 48px rgba(0,0,0,.7);">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-    <div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--org);margin-bottom:2px;">Project Notes</div>
-      <div id="modalProjName" style="font-size:13px;font-weight:600;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+<div id="notesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#1a1d27;border:1px solid #2e3350;border-radius:12px;padding:24px;width:500px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f0a045;margin-bottom:4px;">PROJECT NOTES</div>
+        <div id="notesTitle" style="font-size:13px;font-weight:600;color:#e8eaf0;max-width:380px;word-break:break-word;"></div>
+      </div>
+      <button id="notesCloseBtn" style="background:none;border:none;color:#7a8099;font-size:24px;cursor:pointer;line-height:1;padding:0 2px;margin-left:10px;flex-shrink:0;">&times;</button>
     </div>
-    <button onclick="closeNotesDlg()" style="background:none;border:none;color:var(--mut);font-size:22px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
+    <textarea id="notesText" rows="5"
+      style="display:block;width:100%;background:#22263a;border:1px solid #f0a045;border-radius:6px;color:#e8eaf0;font-size:13px;font-family:system-ui,sans-serif;line-height:1.6;padding:10px 12px;resize:vertical;min-height:100px;box-sizing:border-box;outline:none;"
+      placeholder="Add notes (e.g. 1 truck ships 6/22, 2 on 6/26)..."
+    ></textarea>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
+      <span id="notesSavedMsg" style="font-size:11px;color:#3cb97a;opacity:0;transition:opacity 0.3s;">&#10003; Saved</span>
+      <button id="notesCloseBtn2" style="background:#22263a;color:#7a8099;border:1px solid #2e3350;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Close</button>
+      <button id="notesSaveBtn" style="background:#e8533a;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Save Note</button>
+    </div>
   </div>
-  <textarea id="modalNta" rows="5" style="display:block;width:100%;background:var(--surf2);border:1px solid rgba(240,160,69,.4);border-radius:6px;color:var(--txt);font-size:13px;font-family:inherit;line-height:1.6;padding:8px 10px;resize:vertical;min-height:90px;outline:none;box-sizing:border-box;" placeholder="Add notes (e.g. 1 truck ships 6/22, 2 on 6/26)..."></textarea>
-  <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
-    <span id="modalSaved" style="font-size:11px;color:var(--grn);opacity:0;transition:opacity .3s;">&#10003; Saved</span>
-    <button onclick="closeNotesDlg()" style="background:var(--surf2);color:var(--mut);border:1px solid var(--bdr);border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;">Close</button>
-    <button onclick="saveNoteModal()" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;">Save Note</button>
-  </div>
-</dialog>
+</div>
 </body>
 </html>
