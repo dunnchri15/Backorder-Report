@@ -286,7 +286,7 @@ function renderStats() {
   let openQ=0,inv=0,val=0,od=0,dt=0;
   lastFiltered.forEach(({p}) => {
     openQ+=p[6]||0; inv+=p[7]||0; val+=p[8]||0;
-    if(p[11])od++; if(p[9]===TODAY)dt++;
+    if(p[9]&&p[9]<TODAY)od++; if(p[9]===TODAY)dt++;
   });
   document.getElementById('stats').innerHTML=`
     <div class="sc"><div class="lbl">Lines</div><div class="val c-wht">${lastFiltered.length.toLocaleString()}</div><div class="sub">filtered</div></div>
@@ -358,7 +358,7 @@ const COLS=[
   {l:'Open',       k:6,       fn:r=>`<td class="nr">${fmt(r.p[6])}</td>`},
   {l:'Inventory',  k:7,       fn:r=>`<td class="nr">${fmt(r.p[7])}</td>`},
   {l:'Value $',    k:8,       fn:r=>`<td class="nr">${fmtC(r.p[8])}</td>`},
-  {l:'Ship Date',  k:9,       fn:r=>`<td class="${r.p[11]?'od':'mut'}">${r.p[9]||'—'}</td>`},
+  {l:'Ship Date',  k:9,       fn:r=>`<td class="${r.p[9]&&r.p[9]<TODAY?'od':'mut'}">${r.p[9]||'—'}</td>`},
   {l:'Due Date',   k:10,      fn:r=>`<td class="mut">${r.p[10]||'—'}</td>`},
   {l:'Notes',      k:'notes', fn:r=>notes[r.proj]?`<td><span class="nc" title="${(notes[r.proj]||'').replace(/"/g,'&quot;')}">&#128203; note</span></td>`:`<td></td>`},
 ];
