@@ -4,7 +4,7 @@ import pickle
 import csv
 import io
 import traceback
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import Flask, request, redirect, url_for, render_template, jsonify
 
 import openpyxl
@@ -19,6 +19,7 @@ PARTS_FILE  = os.path.join(DATA_DIR, "parts.pkl")
 NOTES_FILE  = os.path.join(DATA_DIR, "notes.json")
 FEEDER_FILE = os.path.join(DATA_DIR, "feeder.json")
 META_FILE   = os.path.join(DATA_DIR, "meta.json")
+ERROR_FILE  = os.path.join(DATA_DIR, "last_error.txt")
 
 PURCHASED_PLANNERS = {"boes","craig","devowe","glynn","salcedo","slifer","zhang","tracy"}
 
@@ -57,6 +58,11 @@ def load_meta():
 def save_meta(m):
     with open(META_FILE,"w") as f: json.dump(m, f)
 
+def save_error(msg):
+    try:
+        with open(ERROR_FILE,"w") as f: f.write(msg)
+    except: pass
+
 
 # ── Parsing ───────────────────────────────────────────────────
 
@@ -69,7 +75,6 @@ def fmt_date(val):
     try:
         serial = int(float(s))
         if 40000 < serial < 60000:
-            from datetime import timedelta
             d = datetime(1899, 12, 30) + timedelta(days=serial)
             return d.strftime("%Y-%m-%d")
     except: pass
@@ -88,39 +93,29 @@ def safe_float(val):
     except: return 0.0
 
 def read_xlsx_rows(file_bytes):
-    """Read XLSX using openpyxl, return (headers, rows_as_lists)."""
     wb = openpyxl.load_workbook(
         io.BytesIO(file_bytes), read_only=True, data_only=True, keep_links=False
     )
-    # Pick sheet with most non-empty header columns
     best_ws, best_cols = wb.worksheets[0], 0
     for ws in wb.worksheets:
-        row_iter = ws.iter_rows(min_row=1, max_row=1, values_only=True)
-        first = list(next(row_iter, []))
+        first = list(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), []))
         ncols = sum(1 for c in first if c is not None)
         if ncols > best_cols:
             best_cols = ncols
             best_ws = ws
-
     all_rows = list(best_ws.iter_rows(values_only=True))
     wb.close()
-
-    if not all_rows:
-        return [], []
-
+    if not all_rows: return [], []
     headers = [str(c).strip() if c is not None else "" for c in all_rows[0]]
-    data_rows = all_rows[1:]
-    return headers, data_rows
+    return headers, all_rows[1:]
 
 def read_csv_rows(file_bytes):
-    """Read CSV bytes, return (headers, rows_as_lists)."""
     for enc in ("utf-8-sig", "latin-1", "utf-8"):
         try:
             text = file_bytes.decode(enc)
             reader = csv.reader(io.StringIO(text))
             rows = list(reader)
-            if rows:
-                return rows[0], rows[1:]
+            if rows: return rows[0], rows[1:]
         except: pass
     return [], []
 
@@ -154,20 +149,13 @@ def process_rows(headers, rows, feeder_set):
     parts, summary, max_date, row_count = {}, {}, "", 0
 
     for row in rows:
-        # Skip completely empty rows
         if not any(c for c in row if c is not None and str(c).strip()):
             continue
         row_count += 1
-
         coord   = g(row,"coord") or "Unassigned"
         proj    = g(row,"proj")  or "Unknown"
         key     = f"{coord}|||{proj}"
         part_no = g(row,"part").rstrip(" -").strip()
-        po_st   = g(row,"po_st")
-        line_st = g(row,"line_st")
-        bldg    = g(row,"bldg")
-        planner = g(row,"planner")
-        order   = g(row,"order")
         oqty    = safe_float(g(row,"oqty"))
         sqty    = safe_float(g(row,"sqty"))
         opqty   = safe_float(g(row,"opqty"))
@@ -176,55 +164,43 @@ def process_rows(headers, rows, feeder_set):
         ship    = fmt_date(g(row,"ship"))
         due     = fmt_date(g(row,"due"))
         overdue = 1 if ship and "2020" < ship < "2100" and ship < today else 0
-
         if ship and "2020" < ship < "2100" and ship > max_date:
             max_date = ship
-
         purchased = 0
         if feeder_set is not None:
             purchased = 1 if part_no in feeder_set else 0
-        else:
-            if g(row,"purch").lower() == "yes":
-                purchased = 1
-
-        p = [order, po_st, part_no, line_st,
-             oqty, sqty, opqty, inv, val,
-             ship, due, overdue, bldg, purchased, planner]
-
+        elif g(row,"purch").lower() == "yes":
+            purchased = 1
+        p = [g(row,"order"), g(row,"po_st"), part_no, g(row,"line_st"),
+             oqty, sqty, opqty, inv, val, ship, due, overdue,
+             g(row,"bldg"), purchased, g(row,"planner")]
         parts.setdefault(key, []).append(p)
         summary.setdefault(coord, {})
         summary[coord].setdefault(proj, {"open_qty":0,"inventory":0,"value":0,"count":0,"overdue":0})
         m = summary[coord][proj]
-        m["open_qty"] += opqty
-        m["inventory"] += inv
-        m["value"] += val
-        m["count"] += 1
+        m["open_qty"] += opqty; m["inventory"] += inv; m["value"] += val; m["count"] += 1
         if overdue: m["overdue"] += 1
 
     return parts, summary, max_date or today, row_count
 
-
-def parse_feeder_csvs(file_list):
+def parse_one_feeder_csv(file_bytes):
+    """Parse a single feeder CSV and return set of purchased part numbers."""
     purchased = set()
-    for f in file_list:
+    for enc in ("utf-8-sig","latin-1","utf-8"):
         try:
-            raw = f.read()
-            for enc in ("utf-8-sig","latin-1","utf-8"):
-                try:
-                    text = raw.decode(enc)
-                    reader = csv.DictReader(io.StringIO(text))
-                    for row in reader:
-                        src     = row.get("Part Source","").lower()
-                        planner = row.get("Planner","").lower().strip()
-                        part_no = row.get("Part No","").strip()
-                        if not part_no: continue
-                        if "purchased" in src:
-                            purchased.add(part_no)
-                        elif "manufactured" in src and planner in PURCHASED_PLANNERS:
-                            purchased.add(part_no)
-                    break
-                except: pass
-        except: pass
+            text = file_bytes.decode(enc)
+            reader = csv.DictReader(io.StringIO(text))
+            for row in reader:
+                src     = row.get("Part Source","").lower()
+                planner = row.get("Planner","").lower().strip()
+                part_no = row.get("Part No","").strip()
+                if not part_no: continue
+                if "purchased" in src:
+                    purchased.add(part_no)
+                elif "manufactured" in src and planner in PURCHASED_PLANNERS:
+                    purchased.add(part_no)
+            return purchased
+        except: continue
     return purchased
 
 
@@ -232,50 +208,34 @@ def parse_feeder_csvs(file_list):
 
 @app.route("/", methods=["GET"])
 def index():
+    feeder = load_feeder()
     return render_template("index.html",
         meta=load_meta(),
         has_data=load_parts() is not None,
-        has_feeder=load_feeder() is not None,
+        has_feeder=feeder is not None,
+        feeder_size=len(feeder) if feeder else 0,
         note_count=len(load_notes()),
         error=None,
     )
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    error = None
-
-    # Handle feeder CSVs
-    feeder_files = request.files.getlist("feeder_csvs")
-    feeder_set   = load_feeder()
-    if feeder_files and any(f.filename for f in feeder_files):
-        try:
-            feeder_set = parse_feeder_csvs(feeder_files)
-            save_feeder(feeder_set)
-        except Exception as e:
-            error = f"Feeder CSV error: {e}"
-
-    # Handle main report
     report_file = request.files.get("report")
     if not report_file or not report_file.filename:
         return redirect(url_for("index"))
-
     try:
         raw   = report_file.read()
         fname = report_file.filename.lower()
-
         if fname.endswith(".csv"):
             headers, rows = read_csv_rows(raw)
         else:
             headers, rows = read_xlsx_rows(raw)
-
         if not headers:
-            raise ValueError("No headers found — is this a valid XLSX or CSV file?")
-
+            raise ValueError("No headers found — check the file format.")
+        feeder_set = load_feeder()
         parts, summary, report_date, row_count = process_rows(headers, rows, feeder_set)
-
         if not parts:
-            raise ValueError(f"No data rows parsed. Headers detected: {headers[:5]}")
-
+            raise ValueError(f"No data rows parsed. Headers: {headers[:6]}")
         save_parts({"parts": parts, "summary": summary})
         save_meta({
             "report_date":  report_date,
@@ -284,30 +244,66 @@ def upload():
             "uploaded_at":  datetime.now().strftime("%Y-%m-%d %H:%M"),
         })
         return redirect(url_for("dashboard"))
-
     except Exception as e:
-        tb = traceback.format_exc()
-        print("UPLOAD ERROR:", tb)
-        error = str(e)
+        save_error(traceback.format_exc())
         return render_template("index.html",
             meta=load_meta(), has_data=load_parts() is not None,
             has_feeder=load_feeder() is not None,
-            note_count=len(load_notes()), error=error)
+            feeder_size=len(load_feeder()) if load_feeder() else 0,
+            note_count=len(load_notes()), error=str(e))
+
+
+@app.route("/upload-feeder", methods=["POST"])
+def upload_feeder():
+    """Upload ONE feeder CSV at a time — avoids timeout on multiple large files."""
+    f = request.files.get("feeder_csv")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "No file received"})
+    try:
+        raw = f.read()
+        new_parts = parse_one_feeder_csv(raw)
+        # Merge with existing feeder set
+        existing = load_feeder() or set()
+        merged = existing | new_parts
+        save_feeder(merged)
+        # Re-tag existing backorder data if present
+        data = load_parts()
+        if data:
+            for key, part_list in data["parts"].items():
+                for p in part_list:
+                    p[13] = 1 if p[2] in merged else 0
+            save_parts(data)
+        return jsonify({
+            "ok": True,
+            "filename": f.filename,
+            "new_parts": len(new_parts),
+            "total_parts": len(merged),
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()})
+
+
+@app.route("/clear-feeder", methods=["POST"])
+def clear_feeder():
+    """Reset feeder data so you can start fresh."""
+    try:
+        os.remove(FEEDER_FILE)
+    except: pass
+    return jsonify({"ok": True})
 
 
 @app.route("/dashboard")
 def dashboard():
     data = load_parts()
-    if not data:
-        return redirect(url_for("index"))
-    meta  = load_meta()
-    notes = load_notes()
+    if not data: return redirect(url_for("index"))
+    feeder = load_feeder()
     return render_template("dashboard.html",
-        meta=meta,
+        meta=load_meta(),
         parts_json=json.dumps(data["parts"],   separators=(",",":")),
         summary_json=json.dumps(data["summary"], separators=(",",":")),
-        notes_json=json.dumps(notes,           separators=(",",":")),
-        has_feeder=load_feeder() is not None,
+        notes_json=json.dumps(load_notes(),    separators=(",",":")),
+        has_feeder=feeder is not None,
+        feeder_size=len(feeder) if feeder else 0,
     )
 
 @app.route("/api/notes", methods=["GET"])
@@ -319,21 +315,20 @@ def set_notes():
     save_notes(request.get_json(force=True) or {})
     return jsonify({"ok": True})
 
-# Debug route — shows what happened on last upload attempt
 @app.route("/debug")
 def debug():
-    meta = load_meta()
-    data = load_parts()
-    feeder = load_feeder()
+    data = load_parts(); feeder = load_feeder()
+    try: err = open(ERROR_FILE).read()
+    except: err = ""
     return jsonify({
-        "meta": meta,
+        "meta": load_meta(),
         "has_parts": data is not None,
         "parts_keys": list(data["parts"].keys())[:5] if data else [],
         "has_feeder": feeder is not None,
         "feeder_size": len(feeder) if feeder else 0,
         "notes_count": len(load_notes()),
-        "data_dir": DATA_DIR,
         "data_dir_files": os.listdir(DATA_DIR),
+        "last_error": err,
     })
 
 if __name__ == "__main__":
