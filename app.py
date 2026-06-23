@@ -331,6 +331,38 @@ def set_notes():
     save_notes(request.get_json(force=True) or {})
     return jsonify({"ok": True})
 
+@app.route("/test-purchased")
+def test_purchased():
+    """Shows exactly what purchased logic the server is running."""
+    data = load_parts()
+    if not data:
+        return jsonify({"error": "No data loaded yet"})
+    
+    total = sum(len(v) for v in data["parts"].values())
+    purchased = sum(p[13] for pl in data["parts"].values() for p in pl)
+    
+    # Sample purchased parts
+    purch_samples = []
+    not_purch_samples = []
+    for key, pl in data["parts"].items():
+        for p in pl:
+            if p[13] and len(purch_samples) < 5:
+                purch_samples.append({"part": p[2], "proj": key.split("|||")[1]})
+            if not p[13] and len(not_purch_samples) < 5:
+                not_purch_samples.append({"part": p[2], "proj": key.split("|||")[1]})
+    
+    feeder = load_feeder()
+    return jsonify({
+        "total_parts": total,
+        "purchased_count": purchased,
+        "purchased_pct": round(purchased/total*100, 1) if total else 0,
+        "feeder_loaded": feeder is not None,
+        "feeder_size": len(feeder) if feeder else 0,
+        "purchased_samples": purch_samples,
+        "not_purchased_samples": not_purch_samples,
+        "meta": load_meta(),
+    })
+
 @app.route("/debug")
 def debug():
     data = load_parts(); feeder = load_feeder()
