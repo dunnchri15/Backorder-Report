@@ -181,18 +181,33 @@ tbody td{padding:5px 10px;white-space:nowrap;}
 </div>
 
 <div id="notesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;">
-  <div style="background:#1a1d27;border:1px solid #2e3350;border-radius:12px;padding:24px;width:500px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+  <div style="background:#1a1d27;border:1px solid #2e3350;border-radius:12px;padding:24px;width:520px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+    <!-- Header -->
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
-      <div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f0a045;margin-bottom:4px;">PROJECT NOTES</div>
-        <div id="notesTitle" style="font-size:13px;font-weight:600;color:#e8eaf0;max-width:380px;word-break:break-word;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f0a045;margin-bottom:4px;">Notes</div>
+        <div id="notesTitle" style="font-size:13px;font-weight:600;color:#e8eaf0;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
       </div>
-      <button id="notesCloseBtn" style="background:none;border:none;color:#7a8099;font-size:24px;cursor:pointer;line-height:1;padding:0 2px;margin-left:10px;flex-shrink:0;">&times;</button>
+      <button id="notesCloseBtn" style="background:none;border:none;color:#7a8099;font-size:24px;cursor:pointer;line-height:1;padding:0 4px;margin-left:10px;flex-shrink:0;">&times;</button>
     </div>
+    <!-- Toggle: Project vs Line -->
+    <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid #2e3350;border-radius:6px;overflow:hidden;">
+      <button id="noteTabProj" onclick="switchNoteTab('project')"
+        style="flex:1;padding:7px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#e8533a;color:#fff;transition:all .15s;">
+        &#128202; Project Note
+      </button>
+      <button id="noteTabLine" onclick="switchNoteTab('line')"
+        style="flex:1;padding:7px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#22263a;color:#7a8099;transition:all .15s;">
+        &#128196; Line Note
+      </button>
+    </div>
+    <!-- Scope description -->
+    <div id="noteScopeDesc" style="font-size:11px;color:#7a8099;margin-bottom:10px;"></div>
+    <!-- Textarea -->
     <textarea id="notesText" rows="5"
-      style="display:block;width:100%;background:#22263a;border:1px solid #f0a045;border-radius:6px;color:#e8eaf0;font-size:13px;font-family:system-ui,sans-serif;line-height:1.6;padding:10px 12px;resize:vertical;min-height:100px;box-sizing:border-box;outline:none;"
-      placeholder="Add notes (e.g. 1 truck ships 6/22, 2 on 6/26)..."
-    ></textarea>
+      style="display:block;width:100%;background:#22263a;border:1px solid #f0a045;border-radius:6px;color:#e8eaf0;font-size:13px;font-family:system-ui,sans-serif;line-height:1.6;padding:10px 12px;resize:vertical;min-height:90px;box-sizing:border-box;outline:none;"
+      placeholder="Add notes..."></textarea>
+    <!-- Footer -->
     <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
       <span id="notesSavedMsg" style="font-size:11px;color:#3cb97a;opacity:0;transition:opacity 0.3s;">&#10003; Saved</span>
       <button id="notesCloseBtn2" style="background:#22263a;color:#7a8099;border:1px solid #2e3350;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Close</button>
@@ -211,6 +226,8 @@ let selCoord=null, selProj=null;
 let sortColKey=9, sortDir=1;
 let lastFiltered=[];
 let autoTimer=null;
+let noteTab='project';    // 'project' or 'line'
+let noteLineKey=null;     // current line key when in line mode
 
 // ── MULTI-SELECT ──────────────────────────────────────────────
 // State: map of id -> { options:[], selected: Set (empty = all) }
@@ -394,27 +411,62 @@ function showNotesBar(proj) {
   setTimeout(function() { document.getElementById('notesText').focus(); }, 150);
 }
 
-function openNotes(proj, coord) {
-  // Open notes modal directly - no re-render
+function switchNoteTab(tab) {
+  noteTab = tab;
+  var projBtn = document.getElementById('noteTabProj');
+  var lineBtn = document.getElementById('noteTabLine');
+  var desc    = document.getElementById('noteScopeDesc');
+  var ta      = document.getElementById('notesText');
+  if (tab === 'project') {
+    projBtn.style.background = '#e8533a'; projBtn.style.color = '#fff';
+    lineBtn.style.background = '#22263a'; lineBtn.style.color = '#7a8099';
+    desc.textContent = 'Applies to all lines in this project.';
+    ta.value = notes[selProj] || '';
+    ta.placeholder = 'Add a project-level note (e.g. 1 truck ships 6/22, 2 on 6/26)...';
+  } else {
+    lineBtn.style.background = '#e8533a'; lineBtn.style.color = '#fff';
+    projBtn.style.background = '#22263a'; projBtn.style.color = '#7a8099';
+    var lineLabel = noteLineKey ? noteLineKey.split(':::')[2]+' / Order '+noteLineKey.split(':::')[1] : 'this line';
+    desc.textContent = 'Applies to this specific line only (' + lineLabel + ').';
+    ta.value = (noteLineKey && notes[noteLineKey]) || '';
+    ta.placeholder = 'Add a line-specific note...';
+  }
+  setTimeout(function() { ta.focus(); }, 50);
+}
+
+function openNotes(proj, coord, lineKey) {
+  // lineKey format: "LINE:::orderno:::partno" (set when clicking a specific line)
+  if (openPanel) msClose(openPanel);
   selProj = proj;
   selCoord = coord;
-  if (openPanel) msClose(openPanel);
-  var overlay = document.getElementById('notesOverlay');
-  if (!overlay) { alert('Notes overlay not found'); return; }
+  noteLineKey = lineKey || null;
+
   document.getElementById('notesTitle').textContent = proj;
-  var ta = document.getElementById('notesText');
-  ta.value = notes[proj] || '';
   document.getElementById('notesSavedMsg').style.opacity = '0';
-  overlay.style.display = 'flex';
-  setTimeout(function() { ta.focus(); ta.click(); }, 200);
+
+  // Default to project tab; if lineKey provided, default to line tab
+  switchNoteTab(lineKey ? 'line' : 'project');
+
+  // Show/hide line tab based on whether a specific line was clicked
+  var lineBtn = document.getElementById('noteTabLine');
+  lineBtn.style.opacity = lineKey ? '1' : '0.4';
+  lineBtn.style.cursor  = lineKey ? 'pointer' : 'default';
+  lineBtn.title = lineKey ? '' : 'Click a specific line in the table to enable line notes';
+
+  document.getElementById('notesOverlay').style.display = 'flex';
 }
 
 function closeNotesDlg() { document.getElementById('notesOverlay').style.display='none'; }
 
 function saveNoteModal() {
-  if (!selProj) return;
   var v = document.getElementById('notesText').value.trim();
-  if (v) notes[selProj] = v; else delete notes[selProj];
+  if (noteTab === 'project') {
+    if (!selProj) return;
+    if (v) notes[selProj] = v; else delete notes[selProj];
+  } else {
+    if (!noteLineKey) return;
+    if (v) notes[noteLineKey] = v; else delete notes[noteLineKey];
+  }
   saveNotes().then(function() {
     var m = document.getElementById('notesSavedMsg');
     m.style.opacity = '1';
@@ -520,6 +572,8 @@ function renderStats() {
 }
 
 // ── PIVOT TREE ────────────────────────────────────────────────
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
 function renderTree() {
   const treeRows = getFilteredParts(true);
   const tc={};
@@ -530,32 +584,32 @@ function renderTree() {
   });
   const coords=Object.keys(tc).sort();
   document.getElementById('pc').textContent=coords.length+' coords';
-  let html='';
+  let h='';
   coords.forEach(coord => {
     const projs=tc[coord], pks=Object.keys(projs).sort();
     const total=pks.reduce((s,p)=>s+projs[p].cnt,0);
     const isAct=selCoord===coord;
-    html+=`<div class="cr">
-      <div class="cn ${isAct?'act':''}" onclick="toggleCoord(${JSON.stringify(coord)})">
+    h+=`<div class="cr">
+      <div class="cn ${isAct?'act':''}" data-action="coord" data-coord="${esc(coord)}">
         <span>${coord}</span>
         <span style="color:var(--mut);font-weight:400;font-size:10px">&nbsp;(${total})</span>
         <span class="chv ${isAct?'open':''}">&#9658;</span>
       </div>
       <div class="proj-list ${isAct?'open':''}">
-        <div class="pr ${isAct&&!selProj?'act':''}" onclick="selectProj(null,${JSON.stringify(coord)})">
+        <div class="pr ${isAct&&!selProj?'act':''}" data-action="proj" data-proj="" data-coord="${esc(coord)}">
           <span class="pn">All Projects</span><span class="bdg">${total}</span>
         </div>
         ${pks.map(proj=>{
           const d=projs[proj],short=proj.replace(/^S-|^T-/,'');
-          return `<div class="pr ${selProj===proj&&selCoord===coord?'act':''}" onclick="selectProj(${JSON.stringify(proj)},${JSON.stringify(coord)})">
-            <span class="pn">${short}${notes[proj]?'<span class="nd"></span>':''}</span>
+          return `<div class="pr ${selProj===proj&&selCoord===coord?'act':''}" data-action="proj" data-proj="${esc(proj)}" data-coord="${esc(coord)}">
+            <span class="pn">${short}${(notes[proj]||Object.keys(notes).some(k=>k.startsWith('LINE:::')&&notes[k]&&PARTS[coord+'|||'+proj]&&PARTS[coord+'|||'+proj].some(p=>k===('LINE:::'+p[0]+':::'+p[2]))))?'<span class="nd"></span>':''}</span>
             <span class="bdg ${d.open>d.inv?'red':'grn'}">${d.cnt}</span>
           </div>`;
         }).join('')}
       </div>
     </div>`;
   });
-  document.getElementById('tree').innerHTML=html||'<div class="empty-msg">No results.</div>';
+  document.getElementById('tree').innerHTML=h||'<div class="empty-msg">No results.</div>';
 }
 
 function toggleCoord(c) {
@@ -598,7 +652,22 @@ const COLS=[
   {l:'Value $',    k:8,       fn:r=>`<td class="nr">${fmtC(r.p[8])}</td>`},
   {l:'Ship Date',  k:9,       fn:r=>`<td class="${r.p[9]&&r.p[9]<TODAY?'od':'mut'}">${r.p[9]||'—'}</td>`},
   {l:'Due Date',   k:10,      fn:r=>`<td class="mut">${r.p[10]||'—'}</td>`},
-  {l:'Notes', k:'notes', fn:r=>`<td><span class="note-btn" data-proj="${r.proj.replace(/"/g,'&quot;')}" data-coord="${r.coord.replace(/"/g,'&quot;')}" style="cursor:pointer;padding:2px 8px;border-radius:4px;display:inline-block;background:${notes[r.proj]?'rgba(240,160,69,.2)':'rgba(255,255,255,.05)'};color:${notes[r.proj]?'#f0a045':'#7a8099'};font-size:10px;">${notes[r.proj]?'&#128203; '+notes[r.proj].substring(0,25)+(notes[r.proj].length>25?'...':''):'+ note'}</span></td>`},
+  {l:'Notes', k:'notes', fn:r=>{
+    const lineKey='LINE:::'+r.p[0]+':::'+r.p[2];
+    const projNote=notes[r.proj]||'';
+    const lineNote=notes[lineKey]||'';
+    const hasNote=projNote||lineNote;
+    const display=lineNote?'&#128196; '+lineNote.substring(0,20)+(lineNote.length>20?'...':''):
+                  projNote?'&#128202; '+projNote.substring(0,20)+(projNote.length>20?'...':''):'+ note';
+    return `<td><span class="note-btn"
+      data-proj="${r.proj.replace(/"/g,'&quot;')}"
+      data-coord="${r.coord.replace(/"/g,'&quot;')}"
+      data-linekey="${lineKey.replace(/"/g,'&quot;')}"
+      style="cursor:pointer;padding:2px 8px;border-radius:4px;display:inline-block;font-size:10px;
+             background:${hasNote?'rgba(240,160,69,.2)':'rgba(255,255,255,.05)'};
+             color:${hasNote?'#f0a045':'#7a8099'};"
+      >${display}</span></td>`;
+  }},
 ];
 
 function fmt(v){const n=parseFloat(v);return isNaN(n)?'—':Math.round(n).toLocaleString();}
@@ -683,9 +752,24 @@ document.getElementById('notesText').addEventListener('keydown', function(e) {
 document.getElementById('tbl').addEventListener('click', function(e) {
   var btn = e.target.closest('.note-btn');
   if (!btn) return;
-  var proj = btn.getAttribute('data-proj');
-  var coord = btn.getAttribute('data-coord');
-  openNotes(proj, coord);
+  var proj    = btn.getAttribute('data-proj');
+  var coord   = btn.getAttribute('data-coord');
+  var lineKey = btn.getAttribute('data-linekey');
+  openNotes(proj, coord, lineKey);
+});
+
+// Event delegation for coordinator tree clicks
+document.getElementById('tree').addEventListener('click', function(e) {
+  var coordEl = e.target.closest('[data-action="coord"]');
+  var projEl  = e.target.closest('[data-action="proj"]');
+  if (coordEl) {
+    var c = coordEl.getAttribute('data-coord');
+    toggleCoord(c);
+  } else if (projEl) {
+    var proj  = projEl.getAttribute('data-proj');
+    var coord = projEl.getAttribute('data-coord');
+    selectProj(proj || null, coord);
+  }
 });
 </script>
 </body>
