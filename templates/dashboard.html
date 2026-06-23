@@ -90,11 +90,11 @@ input[type=text]{width:150px;}
 .rc{font-size:10px;color:var(--mut);}
 
 /* NOTES */
-.nb{background:rgba(240,160,69,.07);border-bottom:1px solid rgba(240,160,69,.2);padding:8px 14px;display:none;align-items:flex-start;gap:9px;flex-shrink:0;}
+.nb{background:rgba(240,160,69,.07);border-bottom:1px solid rgba(240,160,69,.2);padding:8px 14px;display:none;align-items:flex-start;gap:9px;flex-shrink:0;position:relative;z-index:10000;}
 .nb.open{display:flex;}
 .ni{color:var(--org);font-size:13px;margin-top:2px;flex-shrink:0;}
 .nl{font-size:9px;font-weight:700;color:var(--org);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
-.nta{display:block;width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(240,160,69,.4);border-radius:5px;color:var(--txt);font-size:12px;font-family:inherit;line-height:1.5;padding:5px 8px;resize:vertical;min-height:36px;max-height:100px;outline:none;}
+.nta{display:block;width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(240,160,69,.4);border-radius:5px;color:var(--txt);font-size:12px;font-family:inherit;line-height:1.5;padding:5px 8px;resize:vertical;min-height:36px;max-height:100px;outline:none;pointer-events:auto;position:relative;z-index:10001;-webkit-user-select:text;user-select:text;cursor:text;}
 .nta:focus{border-color:var(--org);background:rgba(255,255,255,.1);}
 .nta::placeholder{color:var(--mut);}
 .nsw{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
@@ -256,9 +256,9 @@ function msCreate(id) {
   });
 
   document.getElementById(`${id}-none`).addEventListener('click', function() {
-    // "Clear all" = select nothing = show nothing
-    // Better: treat as "select all" to avoid confusing empty state
-    MS[id].selected = new Set();
+    // "Clear all" = uncheck everything visually so user can select specific items
+    // Set selected = all options individually (all unchecked state)
+    MS[id].selected = new Set(MS[id].options);
     msRender(id);
     msUpdateLabel(id);
     applyFilters();
@@ -340,8 +340,10 @@ function msUpdateLabel(id) {
 }
 
 function msMatches(id, val) {
-  const {selected} = MS[id];
-  return selected.size === 0 || selected.has(val || '');
+  const {selected, options} = MS[id];
+  // Empty set OR all options selected = no filter active = show all
+  if (selected.size === 0 || selected.size === options.length) return true;
+  return selected.has(val || '');
 }
 
 function msReset(id) {
@@ -379,6 +381,8 @@ function saveNote() {
 }
 
 function showNotesBar(proj) {
+  // Close any open multi-select panel first
+  if (openPanel) msClose(openPanel);
   const nb = document.getElementById('nb');
   if (!proj) { nb.classList.remove('open'); return; }
   nb.classList.add('open');
