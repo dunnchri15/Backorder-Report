@@ -177,10 +177,13 @@ def process_rows(headers, rows, feeder_set):
         if ship and "2020" < ship < "2100" and ship > max_date:
             max_date = ship
         purchased = 0
-        if feeder_set is not None:
+        purch_val = g(row,"purch").strip()
+        if purch_val:
+            # Report has a Purchased column — use it as primary source (case-insensitive)
+            purchased = 1 if purch_val.lower() == "yes" else 0
+        elif feeder_set is not None:
+            # No Purchased column — fall back to feeder set matching
             purchased = 1 if part_no in feeder_set else 0
-        elif g(row,"purch").lower() == "yes":
-            purchased = 1
         p = [g(row,"order"), g(row,"po_st"), part_no, g(row,"line_st"),
              oqty, sqty, opqty, inv, val, ship, due, overdue,
              g(row,"bldg"), purchased, g(row,"planner")]
