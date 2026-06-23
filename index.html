@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backorder Dashboard — Revolution Group</title>
+<style>
+:root{--bg:#0f1117;--surf:#1a1d27;--surf2:#22263a;--bdr:#2e3350;--red:#e8533a;--org:#f0a045;--grn:#3cb97a;--txt:#e8eaf0;--mut:#7a8099;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;flex-direction:column;}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 24px;height:52px;background:var(--surf);border-bottom:1px solid var(--bdr);}
+.logo{font-weight:800;font-size:15px;letter-spacing:.5px;}
+.logo span{color:var(--red);}
+.spacer{flex:1;}
+.view-link{font-size:12px;color:var(--grn);text-decoration:none;padding:4px 12px;border:1px solid var(--grn);border-radius:5px;}
+.view-link:hover{background:rgba(60,185,122,.1);}
+.page{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:40px 48px;width:100%;max-width:560px;}
+.card h1{font-size:22px;font-weight:800;margin-bottom:6px;}
+.card .sub{color:var(--mut);font-size:13px;margin-bottom:28px;line-height:1.6;}
+.status-ok{background:rgba(60,185,122,.1);border:1px solid rgba(60,185,122,.3);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:12px;}
+.status-ok strong{color:var(--grn);}
+.status-ok .meta{color:var(--mut);margin-top:3px;font-size:11px;}
+.error-box{background:rgba(232,83,58,.1);border:1px solid rgba(232,83,58,.3);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:12px;color:var(--red);}
+form{display:flex;flex-direction:column;gap:20px;}
+.field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:6px;}
+.drop{border:1px dashed var(--bdr);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .15s;position:relative;}
+.drop:hover,.drop.drag{border-color:var(--red);}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop .icon{font-size:22px;margin-bottom:6px;display:block;}
+.drop .hint{font-size:12px;color:var(--mut);}
+.drop .fname{font-size:11px;color:var(--grn);margin-top:4px;}
+.field.optional label::after{content:" (optional)";font-weight:400;text-transform:none;letter-spacing:0;}
+.divider{border:none;border-top:1px solid var(--bdr);}
+.submit-btn{background:var(--red);color:#fff;border:none;border-radius:8px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.submit-btn:hover{opacity:.88;}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+.steps{margin-top:28px;border-top:1px solid var(--bdr);padding-top:20px;display:flex;flex-direction:column;gap:10px;}
+.step{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--mut);}
+.step-n{width:20px;height:20px;border-radius:50%;background:var(--bdr);color:var(--txt);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step b{color:var(--txt);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">REVOLUTION <span>GROUP</span></div>
+  <div class="spacer"></div>
+  {% if has_data %}<a href="/dashboard" class="view-link">→ View Dashboard</a>{% endif %}
+</div>
+<div class="page">
+  <div class="card">
+    <h1>Backorder Dashboard</h1>
+    <p class="sub">Upload today's backorder report to refresh the dashboard.<br>Notes from previous uploads are always preserved.</p>
+
+    {% if has_data and meta %}
+    <div class="status-ok">
+      <strong>✓ Data loaded — {{ meta.report_date }}</strong>
+      <div class="meta">{{ meta.report_name }} &middot; {{ "{:,}".format(meta.row_count) }} lines{% if has_feeder %} &middot; Feeder data active{% endif %} &middot; Uploaded {{ meta.uploaded_at }}</div>
+    </div>
+    {% endif %}
+
+    {% if error %}<div class="error-box">⚠ Error processing file: {{ error }}</div>{% endif %}
+
+    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+      <div class="field">
+        <label>Backorder Report</label>
+        <div class="drop" id="reportDrop">
+          <input type="file" name="report" accept=".xlsx,.csv" required onchange="setName(this,'reportName')">
+          <span class="icon">📊</span>
+          <div class="hint">Click to browse or drag and drop</div>
+          <div class="fname" id="reportName"></div>
+        </div>
+      </div>
+      <div class="field optional">
+        <label>Feeder CSVs (part source data)</label>
+        <div class="drop" id="feederDrop">
+          <input type="file" name="feeder_csvs" accept=".csv" multiple onchange="setName(this,'feederName')">
+          <span class="icon">📂</span>
+          <div class="hint">{% if has_feeder %}Feeder data already loaded — only re-upload if it changed{% else %}Select all 4 part-source CSV files at once{% endif %}</div>
+          <div class="fname" id="feederName"></div>
+        </div>
+      </div>
+      <hr class="divider">
+      <button type="submit" class="submit-btn" id="submitBtn">Upload &amp; Process</button>
+    </form>
+
+    <div class="steps">
+      <div class="step"><div class="step-n">1</div><div><b>Upload the backorder XLSX or CSV</b> daily — notes and feeder data persist across uploads.</div></div>
+      <div class="step"><div class="step-n">2</div><div><b>Feeder CSVs</b> tag parts as purchased or manufactured. Only re-upload when the source data changes.</div></div>
+      <div class="step"><div class="step-n">3</div><div><b>Add notes per project</b> in the dashboard — click any project in the left panel to annotate it.</div></div>
+    </div>
+  </div>
+</div>
+<script>
+function setName(input, id) {
+  document.getElementById(id).textContent = input.files.length === 1 ? input.files[0].name : input.files.length + ' files selected';
+}
+['reportDrop','feederDrop'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag'));
+  el.addEventListener('drop', () => el.classList.remove('drag'));
+});
+document.getElementById('uploadForm').addEventListener('submit', function() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Processing…';
+});
+</script>
+</body>
+</html>
