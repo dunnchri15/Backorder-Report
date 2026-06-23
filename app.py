@@ -163,7 +163,9 @@ def process_rows(headers, rows, feeder_set):
         coord   = g(row,"coord") or "Unassigned"
         proj    = g(row,"proj")  or "Unknown"
         key     = f"{coord}|||{proj}"
-        part_no = g(row,"part").rstrip(" -").strip()
+        raw_part = g(row,"part")
+        # Strip trailing ' - SUFFIX' (e.g. 'H6BFG1NGT - ' or 'A18MIE0003633 - G')
+        part_no = raw_part.split(' - ')[0].strip().rstrip('- ').strip()
         oqty    = safe_float(g(row,"oqty"))
         sqty    = safe_float(g(row,"sqty"))
         opqty   = safe_float(g(row,"opqty"))
@@ -203,10 +205,13 @@ def parse_one_feeder_csv(file_bytes):
                 planner = row.get("Planner","").lower().strip()
                 part_no = row.get("Part No","").strip()
                 if not part_no: continue
-                if "purchased" in src:
+                is_purch = ("purchased" in src) or ("manufactured" in src and planner in PURCHASED_PLANNERS)
+                if is_purch:
                     purchased.add(part_no)
-                elif "manufactured" in src and planner in PURCHASED_PLANNERS:
-                    purchased.add(part_no)
+                    # Also add base number before colon variant suffix (e.g. 'PART:EBLK' -> 'PART')
+                    base = part_no.split(':')[0].strip()
+                    if base != part_no:
+                        purchased.add(base)
             return purchased
         except: continue
     return purchased
