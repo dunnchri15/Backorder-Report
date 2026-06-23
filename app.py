@@ -69,16 +69,24 @@ def save_error(msg):
 def fmt_date(val):
     if not val or str(val).strip() in ("", "None", "nan"): return ""
     s = str(val).strip()
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+    # Strip time component: "5/29/2026 12:00:00 AM" -> "5/29/2026"
+    s = s.split(' ')[0].strip()
+    # Try parsing the full date string (handles single-digit months/days)
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%#m/%#d/%Y", "%-m/%-d/%Y"):
+        try: return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except: pass
+    # Fallback: try first 10 chars for ISO-style dates
+    for fmt in ("%Y-%m-%d",):
         try: return datetime.strptime(s[:10], fmt).strftime("%Y-%m-%d")
         except: pass
+    # Excel serial number
     try:
         serial = int(float(s))
         if 40000 < serial < 60000:
             d = datetime(1899, 12, 30) + timedelta(days=serial)
             return d.strftime("%Y-%m-%d")
     except: pass
-    return s[:10] if len(s) >= 10 else ""
+    return ""
 
 def col_find(headers, *names):
     lu = {str(h).lower().replace(" ","").replace("_","").replace("#",""): i
