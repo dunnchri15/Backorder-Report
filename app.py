@@ -3,6 +3,7 @@ import json
 import pickle
 import csv
 import io
+import traceback
 from datetime import datetime, date
 from flask import Flask, request, redirect, url_for, render_template, jsonify
 
@@ -22,7 +23,7 @@ META_FILE   = os.path.join(DATA_DIR, "meta.json")
 PURCHASED_PLANNERS = {"boes","craig","devowe","glynn","salcedo","slifer","zhang","tracy"}
 
 
-# ── Storage helpers ───────────────────────────────────────────
+# ── Storage ───────────────────────────────────────────────────
 
 def load_notes():
     try:
@@ -57,26 +58,26 @@ def save_meta(m):
     with open(META_FILE,"w") as f: json.dump(m, f)
 
 
-# ── Parsing helpers ───────────────────────────────────────────
+# ── Parsing ───────────────────────────────────────────────────
 
 def fmt_date(val):
     if not val or str(val).strip() in ("", "None", "nan"): return ""
     s = str(val).strip()
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d %H:%M:%S"):
-        try: return datetime.strptime(s[:len(fmt)], fmt).strftime("%Y-%m-%d")
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try: return datetime.strptime(s[:10], fmt).strftime("%Y-%m-%d")
         except: pass
-    # Excel serial number
     try:
         serial = int(float(s))
         if 40000 < serial < 60000:
-            d = datetime(1899, 12, 30) + __import__('datetime').timedelta(days=serial)
+            from datetime import timedelta
+            d = datetime(1899, 12, 30) + timedelta(days=serial)
             return d.strftime("%Y-%m-%d")
     except: pass
     return s[:10] if len(s) >= 10 else ""
 
 def col_find(headers, *names):
-    """Case-insensitive fuzzy column finder, returns index or None."""
-    lu = {h.lower().replace(" ","").replace("_","").replace("#",""): i for i, h in enumerate(headers)}
+    lu = {str(h).lower().replace(" ","").replace("_","").replace("#",""): i
+          for i, h in enumerate(headers)}
     for n in names:
         k = n.lower().replace(" ","").replace("_","").replace("#","")
         if k in lu: return lu[k]
@@ -87,24 +88,32 @@ def safe_float(val):
     except: return 0.0
 
 def read_xlsx_rows(file_bytes):
-    """Read XLSX, pick the sheet with most columns, return (headers, rows)."""
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-    best_sheet, best_cols = wb.worksheets[0], 0
+    """Read XLSX using openpyxl, return (headers, rows_as_lists)."""
+    wb = openpyxl.load_workbook(
+        io.BytesIO(file_bytes), read_only=True, data_only=True, keep_links=False
+    )
+    # Pick sheet with most non-empty header columns
+    best_ws, best_cols = wb.worksheets[0], 0
     for ws in wb.worksheets:
-        ws_iter = ws.iter_rows(min_row=1, max_row=1, values_only=True)
-        first = next(ws_iter, ())
+        row_iter = ws.iter_rows(min_row=1, max_row=1, values_only=True)
+        first = list(next(row_iter, []))
         ncols = sum(1 for c in first if c is not None)
         if ncols > best_cols:
             best_cols = ncols
-            best_sheet = ws
-    rows_iter = best_sheet.iter_rows(values_only=True)
-    headers = [str(c).strip() if c is not None else "" for c in next(rows_iter, [])]
-    rows = list(rows_iter)
+            best_ws = ws
+
+    all_rows = list(best_ws.iter_rows(values_only=True))
     wb.close()
-    return headers, rows
+
+    if not all_rows:
+        return [], []
+
+    headers = [str(c).strip() if c is not None else "" for c in all_rows[0]]
+    data_rows = all_rows[1:]
+    return headers, data_rows
 
 def read_csv_rows(file_bytes):
-    """Read CSV bytes, return (headers, rows)."""
+    """Read CSV bytes, return (headers, rows_as_lists)."""
     for enc in ("utf-8-sig", "latin-1", "utf-8"):
         try:
             text = file_bytes.decode(enc)
@@ -116,7 +125,6 @@ def read_csv_rows(file_bytes):
     return [], []
 
 def process_rows(headers, rows, feeder_set):
-    """Convert raw rows into parts dict + summary dict."""
     C = {
         "coord":   col_find(headers,"project coordinator","coordinator"),
         "proj":    col_find(headers,"customer address","customeraddress","project"),
@@ -143,11 +151,12 @@ def process_rows(headers, rows, feeder_set):
         return "" if v is None else str(v).strip()
 
     today = date.today().strftime("%Y-%m-%d")
-    parts, summary, max_date = {}, {}, ""
-    row_count = 0
+    parts, summary, max_date, row_count = {}, {}, "", 0
 
     for row in rows:
-        if not any(c for c in row if c is not None and str(c).strip()): continue
+        # Skip completely empty rows
+        if not any(c for c in row if c is not None and str(c).strip()):
+            continue
         row_count += 1
 
         coord   = g(row,"coord") or "Unassigned"
@@ -175,17 +184,21 @@ def process_rows(headers, rows, feeder_set):
         if feeder_set is not None:
             purchased = 1 if part_no in feeder_set else 0
         else:
-            purch_val = g(row,"purch").lower()
-            if purch_val == "yes": purchased = 1
+            if g(row,"purch").lower() == "yes":
+                purchased = 1
 
-        # [order, po_st, part, line_st, oqty, sqty, opqty, inv, val, ship, due, overdue, bldg, purchased, planner]
-        p = [order, po_st, part_no, line_st, oqty, sqty, opqty, inv, val, ship, due, overdue, bldg, purchased, planner]
+        p = [order, po_st, part_no, line_st,
+             oqty, sqty, opqty, inv, val,
+             ship, due, overdue, bldg, purchased, planner]
 
         parts.setdefault(key, []).append(p)
         summary.setdefault(coord, {})
         summary[coord].setdefault(proj, {"open_qty":0,"inventory":0,"value":0,"count":0,"overdue":0})
         m = summary[coord][proj]
-        m["open_qty"] += opqty; m["inventory"] += inv; m["value"] += val; m["count"] += 1
+        m["open_qty"] += opqty
+        m["inventory"] += inv
+        m["value"] += val
+        m["count"] += 1
         if overdue: m["overdue"] += 1
 
     return parts, summary, max_date or today, row_count
@@ -224,29 +237,45 @@ def index():
         has_data=load_parts() is not None,
         has_feeder=load_feeder() is not None,
         note_count=len(load_notes()),
+        error=None,
     )
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    error = None
+
+    # Handle feeder CSVs
     feeder_files = request.files.getlist("feeder_csvs")
     feeder_set   = load_feeder()
     if feeder_files and any(f.filename for f in feeder_files):
-        feeder_set = parse_feeder_csvs(feeder_files)
-        save_feeder(feeder_set)
+        try:
+            feeder_set = parse_feeder_csvs(feeder_files)
+            save_feeder(feeder_set)
+        except Exception as e:
+            error = f"Feeder CSV error: {e}"
 
+    # Handle main report
     report_file = request.files.get("report")
     if not report_file or not report_file.filename:
         return redirect(url_for("index"))
 
     try:
-        raw = report_file.read()
+        raw   = report_file.read()
         fname = report_file.filename.lower()
+
         if fname.endswith(".csv"):
             headers, rows = read_csv_rows(raw)
         else:
             headers, rows = read_xlsx_rows(raw)
 
+        if not headers:
+            raise ValueError("No headers found — is this a valid XLSX or CSV file?")
+
         parts, summary, report_date, row_count = process_rows(headers, rows, feeder_set)
+
+        if not parts:
+            raise ValueError(f"No data rows parsed. Headers detected: {headers[:5]}")
+
         save_parts({"parts": parts, "summary": summary})
         save_meta({
             "report_date":  report_date,
@@ -254,16 +283,23 @@ def upload():
             "row_count":    row_count,
             "uploaded_at":  datetime.now().strftime("%Y-%m-%d %H:%M"),
         })
-    except Exception as e:
-        return render_template("index.html", meta=load_meta(), has_data=False,
-            has_feeder=load_feeder() is not None, note_count=len(load_notes()), error=str(e))
+        return redirect(url_for("dashboard"))
 
-    return redirect(url_for("dashboard"))
+    except Exception as e:
+        tb = traceback.format_exc()
+        print("UPLOAD ERROR:", tb)
+        error = str(e)
+        return render_template("index.html",
+            meta=load_meta(), has_data=load_parts() is not None,
+            has_feeder=load_feeder() is not None,
+            note_count=len(load_notes()), error=error)
+
 
 @app.route("/dashboard")
 def dashboard():
     data = load_parts()
-    if not data: return redirect(url_for("index"))
+    if not data:
+        return redirect(url_for("index"))
     meta  = load_meta()
     notes = load_notes()
     return render_template("dashboard.html",
@@ -282,6 +318,23 @@ def get_notes():
 def set_notes():
     save_notes(request.get_json(force=True) or {})
     return jsonify({"ok": True})
+
+# Debug route — shows what happened on last upload attempt
+@app.route("/debug")
+def debug():
+    meta = load_meta()
+    data = load_parts()
+    feeder = load_feeder()
+    return jsonify({
+        "meta": meta,
+        "has_parts": data is not None,
+        "parts_keys": list(data["parts"].keys())[:5] if data else [],
+        "has_feeder": feeder is not None,
+        "feeder_size": len(feeder) if feeder else 0,
+        "notes_count": len(load_notes()),
+        "data_dir": DATA_DIR,
+        "data_dir_files": os.listdir(DATA_DIR),
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
