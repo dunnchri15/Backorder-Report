@@ -132,7 +132,7 @@ tbody td{padding:5px 10px;white-space:nowrap;}
     <div class="logo">IRWIN <span>BACKORDER REPORT</span></div>
     <a href="/" class="upload-link">&#8679; Upload New Report</a>
     <div class="spacer"></div>
-    <div class="date-badge">Report: {{ meta.report_date }}</div>
+    <div class="date-badge">Uploaded: {{ meta.uploaded_at }} &nbsp;|&nbsp; Report: {{ meta.report_date }}</div>
   </div>
 
   <div class="filters" id="filterBar">
@@ -646,6 +646,7 @@ const COLS=[
   {l:'Project',    k:'proj',  fn:r=>`<td class="trunc" title="${r.proj}">${r.proj}</td>`},
   {l:'Building',   k:12,      fn:r=>`<td class="mut">${r.p[12]||''}</td>`},
   {l:'Order #',    k:0,       fn:r=>`<td class="mut">${r.p[0]}</td>`},
+  {l:'PO No',      k:15,      fn:r=>`<td class="mut">${r.p[15]||''}</td>`},
   {l:'Part #',     k:2,       fn:r=>`<td class="mono">${r.p[2]}</td>`},
   {l:'Planner',    k:14,      fn:r=>`<td class="mut">${r.p[14]||'—'}</td>`},
   {l:'Type',       k:13,      fn:r=>`<td>${r.p[13]?'<span class="purch-chip">Purchased</span>':''}</td>`},
@@ -717,11 +718,11 @@ function setSort(k){
 
 // ── EXPORT ────────────────────────────────────────────────────
 function exportCSV() {
-  const headers=['Coordinator','Project','Building','Order #','Part #','Planner','Type','PO Status','Line Status','Ord Qty','Shipped Qty','Open Qty','Inventory','Value $','Ship Date','Due Date','Notes'];
+  const headers=['Coordinator','Project','Building','Order #','PO No','Part #','Planner','Type','PO Status','Line Status','Ord Qty','Shipped Qty','Open Qty','Inventory','Value $','Ship Date','Due Date','Notes'];
   const esc=v=>{const s=String(v==null?'':v);return(s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:`${s}`;};
   const lines=[headers.map(esc).join(',')];
   lastFiltered.forEach(({coord,proj,p})=>
-    lines.push([coord,proj,p[12]||'',p[0],p[2],p[14]||'',p[13]?'Purchased':'Manufactured',
+    lines.push([coord,proj,p[12]||'',p[0],p[15]||'',p[2],p[14]||'',p[13]?'Purchased':'Manufactured',
       p[1],p[3],p[4]||0,p[5]||0,p[6]||0,p[7]||0,p[8]||0,p[9]||'',p[10]||'',notes[proj]||''].map(esc).join(','))
   );
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});
