@@ -141,6 +141,7 @@ def process_rows(headers, rows, feeder_set):
         "coord":   col_find(headers,"project coordinator","coordinator"),
         "proj":    col_find(headers,"customer address","customeraddress","project"),
         "order":   col_find(headers,"order no","orderno","order"),
+        "po_no":   col_find(headers,"po no","pono","po#","ponumber"),
         "po_st":   col_find(headers,"po status","postatus"),
         "part":    col_find(headers,"part no","partno","part","partnumber"),
         "line_st": col_find(headers,"line status","linestatus"),
@@ -200,7 +201,7 @@ def process_rows(headers, rows, feeder_set):
             row_planner = _planner_cache.get(part_no, '')
         p = [g(row,"order"), g(row,"po_st"), part_no, g(row,"line_st"),
              oqty, sqty, opqty, inv, val, ship, due, overdue,
-             g(row,"bldg"), purchased, row_planner]
+             g(row,"bldg"), purchased, row_planner, g(row,"po_no")]
         parts.setdefault(key, []).append(p)
         summary.setdefault(coord, {})
         summary[coord].setdefault(proj, {"open_qty":0,"inventory":0,"value":0,"count":0,"overdue":0})
@@ -208,7 +209,7 @@ def process_rows(headers, rows, feeder_set):
         m["open_qty"] += opqty; m["inventory"] += inv; m["value"] += val; m["count"] += 1
         if overdue: m["overdue"] += 1
 
-    return parts, summary, max_date or today, row_count
+    return parts, summary, today, row_count  # use upload date, not max ship date
 
 def parse_one_feeder_csv(file_bytes):
     """Parse a single feeder CSV and return (set of purchased part numbers, part->planner dict)."""
