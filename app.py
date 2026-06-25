@@ -15,12 +15,13 @@ app.secret_key = os.environ.get("SECRET_KEY", "rg-backorder-2026")
 DATA_DIR = os.environ.get("DATA_DIR", "/tmp/backorder_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-PARTS_FILE   = os.path.join(DATA_DIR, "parts.pkl")
-NOTES_FILE   = os.path.join(DATA_DIR, "notes.json")
-FEEDER_FILE  = os.path.join(DATA_DIR, "feeder.json")
-PLANNER_FILE = os.path.join(DATA_DIR, "planner.json")
-META_FILE    = os.path.join(DATA_DIR, "meta.json")
-ERROR_FILE   = os.path.join(DATA_DIR, "last_error.txt")
+PARTS_FILE    = os.path.join(DATA_DIR, "parts.pkl")
+NOTES_FILE    = os.path.join(DATA_DIR, "notes.json")
+FEEDER_FILE   = os.path.join(DATA_DIR, "feeder.json")
+PLANNER_FILE  = os.path.join(DATA_DIR, "planner.json")
+PLANGRP_FILE  = os.path.join(DATA_DIR, "plangrp.json")
+META_FILE     = os.path.join(DATA_DIR, "meta.json")
+ERROR_FILE    = os.path.join(DATA_DIR, "last_error.txt")
 
 PURCHASED_PLANNERS = {"boes","craig","devowe","glynn","salcedo","slifer","zhang","tracy"}
 
@@ -66,6 +67,14 @@ def load_planner():
 
 def save_planner(d):
     with open(PLANNER_FILE,"w") as f: json.dump(d, f)
+
+def load_plangrp():
+    try:
+        with open(PLANGRP_FILE) as f: return json.load(f)
+    except: return {}
+
+def save_plangrp(d):
+    with open(PLANGRP_FILE,"w") as f: json.dump(d, f)
 
 def save_error(msg):
     try:
@@ -166,6 +175,7 @@ def process_rows(headers, rows, feeder_set):
     today = date.today().strftime("%Y-%m-%d")
     parts, summary, max_date, row_count = {}, {}, "", 0
     _planner_cache = load_planner()  # cache once before loop
+    _plangrp_cache = load_plangrp()  # cache planning group lookup
 
     for row in rows:
         if not any(c for c in row if c is not None and str(c).strip()):
@@ -199,9 +209,10 @@ def process_rows(headers, rows, feeder_set):
         row_planner = g(row,"planner")
         if not row_planner:
             row_planner = _planner_cache.get(part_no, '')
+        row_plangrp = _plangrp_cache.get(part_no, '')
         p = [g(row,"order"), g(row,"po_st"), part_no, g(row,"line_st"),
              oqty, sqty, opqty, inv, val, ship, due, overdue,
-             g(row,"bldg"), purchased, row_planner, g(row,"po_no")]
+             g(row,"bldg"), purchased, row_planner, g(row,"po_no"), row_plangrp]
         parts.setdefault(key, []).append(p)
         summary.setdefault(coord, {})
         summary[coord].setdefault(proj, {"open_qty":0,"inventory":0,"value":0,"count":0,"overdue":0})
@@ -212,9 +223,10 @@ def process_rows(headers, rows, feeder_set):
     return parts, summary, today, row_count  # use upload date, not max ship date
 
 def parse_one_feeder_csv(file_bytes):
-    """Parse a single feeder CSV and return (set of purchased part numbers, part->planner dict)."""
+    """Parse a single feeder CSV and return (purchased set, planner map, planning group map)."""
     purchased = set()
     planner_map = {}
+    plangrp_map = {}
     for enc in ("utf-8-sig","latin-1","utf-8"):
         try:
             text = file_bytes.decode(enc)
@@ -223,23 +235,28 @@ def parse_one_feeder_csv(file_bytes):
                 src        = row.get("Part Source","").lower()
                 planner    = row.get("Planner","").strip()
                 part_no    = row.get("Part No","").strip()
+                plangrp    = row.get("Planning Group Group","").strip()
                 if not part_no: continue
-                # Store planner mapping
+                base = part_no.split(':')[0].strip()
+                # Planner mapping
                 if planner and part_no not in planner_map:
                     planner_map[part_no] = planner
-                    base = part_no.split(':')[0].strip()
                     if base != part_no and base not in planner_map:
                         planner_map[base] = planner
+                # Planning Group Group mapping
+                if plangrp and part_no not in plangrp_map:
+                    plangrp_map[part_no] = plangrp
+                    if base != part_no and base not in plangrp_map:
+                        plangrp_map[base] = plangrp
                 # Purchased logic
                 is_purch = ("purchased" in src) or ("manufactured" in src and planner.lower() in PURCHASED_PLANNERS)
                 if is_purch:
                     purchased.add(part_no)
-                    base = part_no.split(':')[0].strip()
                     if base != part_no:
                         purchased.add(base)
-            return purchased, planner_map
+            return purchased, planner_map, plangrp_map
         except: continue
-    return purchased, {}
+    return purchased, {}, {}
 
 
 # ── Routes ────────────────────────────────────────────────────
@@ -299,7 +316,7 @@ def upload_feeder():
         return jsonify({"ok": False, "error": "No file received"})
     try:
         raw = f.read()
-        new_parts, new_planner = parse_one_feeder_csv(raw)
+        new_parts, new_planner, new_plangrp = parse_one_feeder_csv(raw)
         existing = load_feeder() or set()
         merged = existing | new_parts
         save_feeder(merged)
@@ -307,15 +324,23 @@ def upload_feeder():
         existing_planner = load_planner()
         existing_planner.update(new_planner)
         save_planner(existing_planner)
-        # Re-tag existing backorder data and update planners
+        # Merge planning group map
+        existing_plangrp = load_plangrp()
+        existing_plangrp.update(new_plangrp)
+        save_plangrp(existing_plangrp)
+        # Re-tag existing backorder data and update planners + planning groups
         data = load_parts()
         if data:
             for key, part_list in data["parts"].items():
                 for p in part_list:
                     pv = p[2]
                     p[13] = 1 if pv in merged else 0
-                    if not p[14]:  # only fill planner if missing
+                    if not p[14]:
                         p[14] = existing_planner.get(pv, '')
+                    if len(p) < 17:
+                        p.append(existing_plangrp.get(pv, ''))
+                    elif not p[16]:
+                        p[16] = existing_plangrp.get(pv, '')
             save_parts(data)
         return jsonify({
             "ok": True,
