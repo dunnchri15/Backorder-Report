@@ -108,6 +108,7 @@ thead tr{background:var(--surf);position:sticky;top:0;z-index:10;}
 thead th{padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--bdr);white-space:nowrap;cursor:pointer;user-select:none;}
 thead th:hover{color:var(--txt);}
 tbody tr{border-bottom:1px solid var(--bdr);}
+tbody tr.here-row{background:rgba(60,185,122,0.08) !important;}
 tbody tr:hover{background:var(--surf2);}
 tbody td{padding:5px 10px;white-space:nowrap;}
 .mut{color:var(--mut);}
@@ -679,7 +680,15 @@ const COLS=[
              background:${hasNote?'rgba(240,160,69,.2)':'rgba(255,255,255,.05)'};
              color:${hasNote?'#f0a045':'#7a8099'};"
       >${display}</span></td>`;
-  }},
+  }},,
+  {l:'Here', k:'here', fn:r=>{
+    const hk='HERE:::'+r.p[0]+':::'+r.p[2];
+    const checked=notes[hk]?'checked':'';
+    return `<td style="text-align:center"><input type="checkbox" class="here-cb"
+      data-hk="${hk.replace(/"/g,'&quot;')}"
+      ${checked}
+      style="accent-color:#3cb97a;width:14px;height:14px;cursor:pointer;"></td>`;
+  }}
 ];
 
 function fmt(v){const n=parseFloat(v);return isNaN(n)?'—':Math.round(n).toLocaleString();}
@@ -711,7 +720,7 @@ function renderTable() {
     `<th onclick="setSort(${JSON.stringify(c.k)})">${c.l}<span style="margin-left:2px;opacity:.5">${sortColKey===c.k?arr(sortDir):''}</span></th>`
   ).join('')+'</tr></thead>';
   const show=rows.slice(0,500);
-  const tbody='<tbody>'+show.map(r=>`<tr>${COLS.map(c=>c.fn(r)).join('')}</tr>`).join('')+'</tbody>';
+  const tbody='<tbody>'+show.map(r=>{ const hkr='HERE:::'+r.p[0]+':::'+r.p[2]; return '<tr class="'+(notes[hkr]?'here-row':'')+'">'+COLS.map(c=>c.fn(r)).join('')+'</tr>'; }).join('')+'</tbody>';
   const overflow=rows.length>500?`<div class="overflow-n">Showing 500 of ${rows.length} — filter to narrow.</div>`:'';
   document.getElementById('tbl').innerHTML=`<table>${thead}${tbody}</table>`+overflow;
 }
@@ -723,7 +732,7 @@ function setSort(k){
 
 // ── EXPORT ────────────────────────────────────────────────────
 function exportCSV() {
-  const headers=['Coordinator','Project','Building','Order #','PO No','Part #','Planner','Plan Group','Type','PO Status','Line Status','Ord Qty','Shipped Qty','Open Qty','Inventory','Value $','Ship Date','Due Date','Notes'];
+  const headers=['Coordinator','Project','Building','Order #','PO No','Part #','Planner','Plan Group','Type','PO Status','Line Status','Ord Qty','Shipped Qty','Open Qty','Inventory','Value $','Ship Date','Due Date','Notes','Here'];
   const esc=v=>{const s=String(v==null?'':v);return(s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:`${s}`;};
   const lines=[headers.map(esc).join(',')];
   lastFiltered.forEach(({coord,proj,p})=>{
@@ -733,7 +742,7 @@ function exportCSV() {
     // Export line note if exists, otherwise project note, with prefix so you know which type
     const noteVal=lineNote?'[Line] '+lineNote : projNote?'[Project] '+projNote : '';
     lines.push([coord,proj,p[12]||'',p[0],p[15]||'',p[2],p[14]||'',(p[16]||''),p[13]?'Purchased':'Manufactured',
-      p[1],p[3],p[4]||0,p[5]||0,p[6]||0,p[7]||0,p[8]||0,p[9]||'',p[10]||'',noteVal].map(esc).join(','));
+      p[1],p[3],p[4]||0,p[5]||0,p[6]||0,p[7]||0,p[8]||0,p[9]||'',p[10]||'',noteVal,(notes['HERE:::'+p[0]+':::'+p[2]]?'Yes':'')].map(esc).join(','));
   });
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
@@ -765,14 +774,25 @@ document.getElementById('notesText').addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveNoteModal(); }
 });
 
-// Event delegation for note buttons in table
+// Event delegation for note buttons and here checkboxes in table
 document.getElementById('tbl').addEventListener('click', function(e) {
   var btn = e.target.closest('.note-btn');
-  if (!btn) return;
-  var proj    = btn.getAttribute('data-proj');
-  var coord   = btn.getAttribute('data-coord');
-  var lineKey = btn.getAttribute('data-linekey');
-  openNotes(proj, coord, lineKey);
+  if (btn) {
+    var proj    = btn.getAttribute('data-proj');
+    var coord   = btn.getAttribute('data-coord');
+    var lineKey = btn.getAttribute('data-linekey');
+    openNotes(proj, coord, lineKey);
+    return;
+  }
+  var cb = e.target.closest('.here-cb');
+  if (cb) {
+    var hk = cb.getAttribute('data-hk');
+    if (cb.checked) notes[hk] = '1'; else delete notes[hk];
+    saveNotes();
+    // Highlight/unhighlight the row immediately
+    var row = cb.closest('tr');
+    if (row) row.className = cb.checked ? 'here-row' : '';
+  }
 });
 
 // Event delegation for coordinator tree clicks
