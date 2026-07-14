@@ -583,6 +583,16 @@ function renderStats() {
 }
 
 // ── PIVOT TREE ────────────────────────────────────────────────
+function hasNote(coord, proj) {
+  if (notes[proj]) return true;
+  var prefix = 'LINE:::';
+  return Object.keys(notes).some(function(k) {
+    if (!k.startsWith(prefix) || !notes[k]) return false;
+    var parts = (PARTS[coord+'|||'+proj] || []);
+    return parts.some(function(p) { return k === (prefix+p[0]+':::'+p[2]); });
+  });
+}
+
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 
 function renderTree() {
@@ -613,7 +623,7 @@ function renderTree() {
         ${pks.map(proj=>{
           const d=projs[proj],short=proj.replace(/^S-|^T-/,'');
           return `<div class="pr ${selProj===proj&&selCoord===coord?'act':''}" data-action="proj" data-proj="${esc(proj)}" data-coord="${esc(coord)}">
-            <span class="pn">${short}${(notes[proj]||Object.keys(notes).some(k=>k.startsWith('LINE:::')&&notes[k]&&PARTS[coord+'|||'+proj]&&PARTS[coord+'|||'+proj].some(p=>k===('LINE:::'+p[0]+':::'+p[2]))))?'<span class="nd"></span>':''}</span>
+            <span class="pn">${short}${hasNote(coord,proj)?'<span class="nd"></span>':''}</span>
             <span class="bdg ${d.open>d.inv?'red':'grn'}">${d.cnt}</span>
           </div>`;
         }).join('')}
@@ -638,10 +648,15 @@ function toggleCoord(c) {
   applyFilters();
 }
 function selectProj(proj,coord) {
-  selCoord=coord; selProj=proj;
-  applyFilters();
-  // Note: showNotesBar now called via table row "note" cells directly
-  // Left panel click just filters - use the note cell in table to edit notes
+  selCoord = coord;
+  selProj  = proj;
+  // Update tree immediately to show active state
+  renderTree();
+  // Filter table
+  lastFiltered = getFilteredParts(false);
+  renderStats();
+  renderTable();
+  document.getElementById('title').textContent = proj ? proj : (coord + ' — All Projects');
 }
 
 // ── TABLE ─────────────────────────────────────────────────────
