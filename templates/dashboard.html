@@ -786,12 +786,14 @@ document.getElementById('tbl').addEventListener('click', function(e) {
   }
   var cb = e.target.closest('.here-cb');
   if (cb) {
+    e.stopPropagation();
     var hk = cb.getAttribute('data-hk');
     if (cb.checked) notes[hk] = '1'; else delete notes[hk];
-    saveNotes();
     // Highlight/unhighlight the row immediately
     var row = cb.closest('tr');
     if (row) row.className = cb.checked ? 'here-row' : '';
+    // Save to server (async, fire and forget)
+    saveNotes().catch(function(e) { console.error('Here save failed:', e); });
   }
 });
 
