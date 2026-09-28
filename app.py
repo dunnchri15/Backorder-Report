@@ -268,6 +268,15 @@ def index():
         error=None,
     )
 
+@app.route("/", methods=["GET"])
+def index():
+    """Upload page."""
+    feeder = load_feeder()
+    return render_template("index.html",
+        has_feeder=feeder is not None,
+        feeder_size=len(feeder) if feeder else 0,
+    )
+
 @app.route("/upload", methods=["POST"])
 def upload():
     report_file = request.files.get("report")
