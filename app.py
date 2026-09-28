@@ -223,45 +223,40 @@ def process_rows(headers, rows, feeder_set):
     return parts, summary, today, row_count  # use upload date, not max ship date
 
 def parse_one_feeder_csv(file_bytes):
-    """Parse a single feeder CSV and return (purchased set, planner map, planning group map)."""
+    """Parse a single feeder CSV — streams row by row to minimize memory usage."""
     purchased = set()
     planner_map = {}
     plangrp_map = {}
-    for enc in ("utf-8-sig","latin-1","utf-8"):
+    for enc in ("utf-8-sig", "latin-1", "utf-8"):
         try:
-            text = file_bytes.decode(enc)
-            reader = csv.DictReader(io.StringIO(text))
+            buf    = io.BytesIO(file_bytes)
+            reader = csv.DictReader(io.TextIOWrapper(buf, encoding=enc, errors='replace'))
             for row in reader:
-                src        = row.get("Part Source","").lower()
-                planner    = row.get("Planner","").strip()
-                part_no    = row.get("Part No","").strip()
-                plangrp    = row.get("Planning Group Group","").strip()
-                if not part_no: continue
+                src     = row.get("Part Source", "").lower()
+                planner = row.get("Planner", "").strip()
+                part_no = row.get("Part No", "").strip()
+                plangrp = row.get("Planning Group Group", "").strip()
+                if not part_no:
+                    continue
                 base = part_no.split(':')[0].strip()
-                # Planner mapping
                 if planner and part_no not in planner_map:
                     planner_map[part_no] = planner
                     if base != part_no and base not in planner_map:
                         planner_map[base] = planner
-                # Planning Group Group mapping
                 if plangrp and part_no not in plangrp_map:
                     plangrp_map[part_no] = plangrp
                     if base != part_no and base not in plangrp_map:
                         plangrp_map[base] = plangrp
-                # Purchased logic
-                is_purch = ("purchased" in src) or ("manufactured" in src and planner.lower() in PURCHASED_PLANNERS)
+                is_purch = ("purchased" in src) or                            ("manufactured" in src and planner.lower() in PURCHASED_PLANNERS)
                 if is_purch:
                     purchased.add(part_no)
                     if base != part_no:
                         purchased.add(base)
             return purchased, planner_map, plangrp_map
-        except: continue
+        except Exception:
+            continue
     return purchased, {}, {}
 
-
-# ── Routes ────────────────────────────────────────────────────
-
-@app.route("/", methods=["GET"])
 def index():
     feeder = load_feeder()
     return render_template("index.html",
