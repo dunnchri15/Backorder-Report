@@ -384,11 +384,17 @@ def dashboard():
     data = load_parts()
     if not data: return redirect(url_for("index"))
     feeder = load_feeder()
+    meta = load_meta()
+    # Ensure all expected keys exist with safe defaults
+    meta.setdefault("report_date", "—")
+    meta.setdefault("uploaded_at", "—")
+    meta.setdefault("report_name", "—")
+    meta.setdefault("row_count", 0)
     return render_template("dashboard.html",
-        meta=load_meta(),
-        parts_json=json.dumps(data["parts"],   separators=(",",":")),
+        meta=meta,
+        parts_json=json.dumps(data["parts"],    separators=(",",":")),
         summary_json=json.dumps(data["summary"], separators=(",",":")),
-        notes_json=json.dumps(load_notes(),    separators=(",",":")),
+        notes_json=json.dumps(load_notes(),     separators=(",",":")),
         has_feeder=feeder is not None,
         feeder_size=len(feeder) if feeder else 0,
     )
